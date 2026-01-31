@@ -3,7 +3,6 @@ import Combine
 
 class GameViewModel: ObservableObject {
     
-    // MARK: - Published Properties
     @Published var currentQuestion: Question?
     @Published var input: String = ""
     @Published var timeRemaining: TimeInterval = 60.0
@@ -11,17 +10,15 @@ class GameViewModel: ObservableObject {
     @Published var isGameOver: Bool = false
     @Published var gameMode: GameMode
     
-    // MARK: - Private Properties
     private var timer: AnyCancellable?
     private let maxTime: TimeInterval = 60.0
+    private var questionStartTime: Date?
     
-    // MARK: - Initialization
     init(mode: GameMode) {
         self.gameMode = mode
         startGame()
     }
     
-    // MARK: - Game Logic
     func startGame() {
         score = 0
         input = ""
@@ -48,42 +45,46 @@ class GameViewModel: ObservableObject {
     private func validateAnswer() {
         guard let question = currentQuestion, let playerAnswer = Int(input) else { return }
         
-        // Auto-validate if length matches (simple heuristic) or exact match
-        // For strict checking, we wait for equality
         if playerAnswer == question.answer {
-            handleCorrectAnswer()
+            handleCorrectAnswer(playerAnswer: playerAnswer)
         } else if String(playerAnswer).count >= String(question.answer).count {
-            // If same length but wrong number
-            handleWrongAnswer()
+            handleWrongAnswer(playerAnswer: playerAnswer)
         }
     }
     
-    private func handleCorrectAnswer() {
+    private func handleCorrectAnswer(playerAnswer: Int) {
+        HapticManager.shared.playSuccess()
         score += 1
+        logResult(playerAnswer: playerAnswer)
         input = ""
-        
-        // Add time bonus in sprint if needed
         nextQuestion()
     }
     
-    private func handleWrongAnswer() {
+    private func handleWrongAnswer(playerAnswer: Int) {
+        HapticManager.shared.playError()
+        logResult(playerAnswer: playerAnswer)
+        input = ""
+        
         if gameMode == .marathon {
             endGame()
-        } else {
-            // Visual feedback (shake/red flash) would be triggered here
-            input = "" // Reset input or punish
         }
     }
     
+    private func logResult(playerAnswer: Int) {
+        guard let question = currentQuestion, let startTime = questionStartTime else { return }
+        let responseTime = Date().timeIntervalSince(startTime)
+        let result = GameResult(mode: gameMode, question: question, userAnswer: playerAnswer, responseTime: responseTime)
+        PersistenceManager.shared.saveResult(result)
+    }
+    
     private func nextQuestion() {
-        // In training mode, use SRS generator
         if gameMode == .training {
             currentQuestion = QuestionGenerator.generateWeighted()
         } else {
-            // Randomly mix types for now
             let randomType = OperationType.allCases.randomElement()!
             currentQuestion = QuestionGenerator.generate(type: randomType)
         }
+        questionStartTime = Date()
     }
     
     private func startTimer() {
@@ -101,6 +102,5 @@ class GameViewModel: ObservableObject {
     private func endGame() {
         isGameOver = true
         timer?.cancel()
-        // Log final score to persistence layer here
     }
 }

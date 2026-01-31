@@ -1,10 +1,12 @@
 import Foundation
 
 // MARK: - Enums
-enum GameMode {
+enum GameMode: String, Identifiable, CaseIterable {
     case sprint    // 60s max score
     case marathon  // Until first error
     case training  // SRS based
+    
+    var id: String { self.rawValue }
 }
 
 enum OperationType: String, CaseIterable {

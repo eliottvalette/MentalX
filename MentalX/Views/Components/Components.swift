@@ -14,6 +14,7 @@ struct NumberPadView: View {
         LazyVGrid(columns: columns, spacing: 20) {
             ForEach(1...9, id: \.self) { num in
                 Button {
+                    HapticManager.shared.playKeypadTap()
                     onTap("\(num)")
                 } label: {
                     Text("\(num)")
@@ -30,6 +31,7 @@ struct NumberPadView: View {
             Color.clear
             
             Button {
+                HapticManager.shared.playKeypadTap()
                 onTap("0")
             } label: {
                 Text("0")
@@ -42,6 +44,7 @@ struct NumberPadView: View {
             }
             
             Button {
+                HapticManager.shared.playKeypadTap()
                 onDelete()
             } label: {
                 Image(systemName: "delete.left")

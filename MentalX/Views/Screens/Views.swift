@@ -3,7 +3,11 @@ import SwiftUI
 // MARK: - Dashboard View
 struct DashboardView: View {
     @State private var selectedMode: GameMode?
-    @State private var isGameActive = false
+    @StateObject private var persistence = PersistenceManager.shared
+    
+    var srsItems: [SRSItem] {
+        persistence.calculateSRSItems()
+    }
     
     var body: some View {
         NavigationView {
@@ -14,64 +18,37 @@ struct DashboardView: View {
                     VStack(spacing: 20) {
                         headerView
                         
-                        // Stats Card
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Image(systemName: "brain.head.profile")
-                                    .foregroundColor(.neonGreen)
-                                Text("Neural Precision")
-                                    .font(.headline)
-                                    .foregroundColor(.textSecondary)
-                                Spacer()
-                                Text("94/100")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                            }
-                            ActivityChart()
-                        }
-                        .cyberCardStyle()
-                        
-                        // Game Modes Grid
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                            modeButton(title: "Sprint", icon: "stopwatch", mode: .sprint)
-                            modeButton(title: "Marathon", icon: "flame", mode: .marathon)
-                            modeButton(title: "Training", icon: "dumbbell", mode: .training)
-                        }
-                        
-                        // Weakness List (SRS Preview)
-                        VStack(alignment: .leading) {
-                            Text("Algorithm Focus")
-                                .font(.headline)
-                                .foregroundColor(.textSecondary)
-                                .padding(.bottom, 5)
+                        if !srsItems.isEmpty {
+                            CognitiveLoadChart(items: srsItems)
                             
-                            HStack {
-                                Text("7 x 8")
-                                    .font(.monospaced(.body)())
-                                Spacer()
-                                Text("1.4s avg")
-                                    .foregroundColor(.neonRed)
-                            }
-                            Divider().background(Color.white.opacity(0.1))
-                            HStack {
-                                Text("12 + 89")
-                                    .font(.monospaced(.body)())
-                                Spacer()
-                                Text("1.8s avg")
-                                    .foregroundColor(.neonRed)
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("THREAT LOG")
+                                    .font(.caption)
+                                    .fontWeight(.heavy)
+                                    .foregroundColor(.textSecondary)
+                                    .padding(.leading, 4)
+                                
+                                ForEach(srsItems.filter { $0.status == .critical || $0.status == .unstable }.prefix(4)) { item in
+                                    SRSListRow(item: item)
+                                }
                             }
                         }
-                        .cyberCardStyle()
+                        
+                        VStack(spacing: 12) {
+                            modeButton(title: "Sprint", subtitle: "60s max score", icon: "stopwatch", mode: .sprint)
+                            modeButton(title: "Marathon", subtitle: "Until first error", icon: "flame", mode: .marathon)
+                            modeButton(title: "Training", subtitle: "SRS adaptive", icon: "dumbbell", mode: .training)
+                        }
                     }
                     .padding()
                 }
             }
             .navigationBarHidden(true)
-            .fullScreenCover(isPresented: $isGameActive) {
-                if let mode = selectedMode {
-                    ActiveGameView(mode: mode, isPresented: $isGameActive)
-                }
+            .fullScreenCover(item: $selectedMode) { mode in
+                ActiveGameView(mode: mode, isPresented: Binding(
+                    get: { selectedMode != nil },
+                    set: { if !$0 { selectedMode = nil } }
+                ))
             }
         }
     }
@@ -82,27 +59,44 @@ struct DashboardView: View {
                 .font(.system(size: 24, weight: .heavy, design: .rounded))
                 .foregroundColor(.white)
             Spacer()
-            Image(systemName: "line.3.horizontal")
-                .foregroundColor(.white)
         }
         .padding(.vertical)
     }
     
-    func modeButton(title: String, icon: String, mode: GameMode) -> some View {
+    func modeButton(title: String, subtitle: String, icon: String, mode: GameMode) -> some View {
         Button {
             selectedMode = mode
-            isGameActive = true
         } label: {
-            VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundColor(.white)
-                Text(title)
-                    .fontWeight(.bold)
+                    .foregroundColor(.neonGreen)
+                    .frame(width: 40)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
                     .foregroundColor(.textSecondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cyberCardStyle()
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color.cyberCard)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+            )
         }
     }
 }
