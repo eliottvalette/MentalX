@@ -58,7 +58,7 @@ export const ActiveGameScreen: React.FC<ActiveGameScreenProps> = ({ route, navig
                             {[...Array(3)].map((_, i) => (
                                 <Heart
                                     key={i}
-                                    size={20}
+                                    size={22}
                                     fill={i < lives ? COLORS.neonRed : 'transparent'}
                                     color={COLORS.neonRed}
                                     style={{ opacity: i < lives ? 1 : 0.3 }}
@@ -66,6 +66,16 @@ export const ActiveGameScreen: React.FC<ActiveGameScreenProps> = ({ route, navig
                             ))}
                         </View>
                     )}
+                </View>
+
+                <View style={styles.questionArea}>
+                    {currentQuestion && (
+                        <>
+                            <Text style={styles.questionText}>{currentQuestion.text}</Text>
+                            <Text style={styles.inputText}>{input || '_'}</Text>
+                        </>
+                    )}
+                    <Text style={styles.scoreText}>Score: {score}</Text>
                 </View>
 
                 {mode === GameMode.MARATHON && (
@@ -81,16 +91,6 @@ export const ActiveGameScreen: React.FC<ActiveGameScreenProps> = ({ route, navig
                         />
                     </View>
                 )}
-
-                <View style={styles.questionArea}>
-                    {currentQuestion && (
-                        <>
-                            <Text style={styles.questionText}>{currentQuestion.text}</Text>
-                            <Text style={styles.inputText}>{input || '_'}</Text>
-                        </>
-                    )}
-                    <Text style={styles.scoreText}>Score: {score}</Text>
-                </View>
 
                 <NumberPad onTap={submitInput} onDelete={deleteInput} />
 
@@ -116,10 +116,20 @@ const styles = StyleSheet.create({
     exitButton: { fontSize: FONTS.body, color: COLORS.neonRed, fontWeight: '600' },
     spacer: { flex: 1 },
     timer: { fontSize: FONTS.title2, color: COLORS.neonGreen, fontWeight: '600' },
-    livesContainer: { flexDirection: 'row', gap: 4 },
+    livesContainer: { flexDirection: 'row', gap: 6 },
     heart: { fontSize: 24, color: COLORS.neonRed },
-    progressBarContainer: { height: 4, backgroundColor: '#333', width: '100%' },
-    progressBarFill: { height: '100%' },
+    progressBarContainer: {
+        height: 6,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        marginHorizontal: 16,
+        marginBottom: 16,
+        borderRadius: 3,
+        overflow: 'hidden',
+    },
+    progressBarFill: {
+        height: '100%',
+        borderRadius: 3,
+    },
     questionArea: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
     questionText: { fontSize: 42, fontWeight: '300', color: COLORS.textPrimary, marginBottom: 10, fontVariant: ['tabular-nums'] },
     inputText: { fontSize: 32, fontWeight: '500', color: COLORS.neonGreen, height: 40 },

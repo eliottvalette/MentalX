@@ -68,72 +68,74 @@ export const SRSHeatmap: React.FC<SRSHeatmapProps> = ({ items }) => {
                 </TouchableOpacity>
             </View>
 
-            {/* CONTENT WITH SCROLLVIEW */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainer}>
+
+            {/* CONTENT - Conditional ScrollView */}
+            {activeTab === 'mult' ? (
                 <View>
-                    {activeTab === 'mult' ? (
-                        <View style={styles.grid}>
-                            {/* Header Row */}
-                            <View style={styles.row}>
-                                <View style={styles.headerCellSmallPlaceholder} />
-                                {multiplicationNumbers.map(n => (
-                                    <View key={`h-${n}`} style={styles.headerCellSmall}>
-                                        <Text style={styles.headerTextSmall}>{n}</Text>
-                                    </View>
-                                ))}
-                            </View>
-
-                            {/* Data Rows */}
-                            {multiplicationNumbers.map(rowNum => (
-                                <View key={`row-${rowNum}`} style={styles.row}>
-                                    <View style={styles.headerCellSmall}>
-                                        <Text style={styles.headerTextSmall}>{rowNum}</Text>
-                                    </View>
-                                    {multiplicationNumbers.map(colNum => {
-                                        const color = getColorForMultiplication(rowNum, colNum);
-                                        return (
-                                            <View
-                                                key={`${rowNum}-${colNum}`}
-                                                style={[styles.cellSmall, { backgroundColor: color }]}
-                                            />
-                                        );
-                                    })}
+                    <View style={styles.grid}>
+                        {/* Header Row */}
+                        <View style={styles.row}>
+                            <View style={styles.headerCellSmallPlaceholder} />
+                            {multiplicationNumbers.map(n => (
+                                <View key={`h-${n}`} style={styles.headerCellSmall}>
+                                    <Text style={styles.headerTextSmall}>{n}</Text>
                                 </View>
                             ))}
                         </View>
-                    ) : (
-                        <View style={styles.grid}>
-                            {/* Header Row */}
-                            <View style={styles.row}>
-                                <View style={styles.headerCellPlaceholder} />
-                                {additionRanges.map(range => (
-                                    <View key={`h-${range.label}`} style={styles.headerCell}>
-                                        <Text style={styles.headerText}>{range.label}</Text>
-                                    </View>
-                                ))}
-                            </View>
 
-                            {/* Data Rows */}
-                            {additionRanges.map(rowRange => (
-                                <View key={`row-${rowRange.label}`} style={styles.row}>
-                                    <View style={styles.headerCell}>
-                                        <Text style={styles.headerText}>{rowRange.label}</Text>
-                                    </View>
-                                    {additionRanges.map(colRange => {
-                                        const color = getColorForAdditionRange(rowRange, colRange);
-                                        return (
-                                            <View
-                                                key={`${rowRange.label}-${colRange.label}`}
-                                                style={[styles.cell, { backgroundColor: color }]}
-                                            />
-                                        );
-                                    })}
+                        {/* Data Rows */}
+                        {multiplicationNumbers.map(rowNum => (
+                            <View key={`row-${rowNum}`} style={styles.row}>
+                                <View style={styles.headerCellSmall}>
+                                    <Text style={styles.headerTextSmall}>{rowNum}</Text>
                                 </View>
-                            ))}
-                        </View>
-                    )}
+                                {multiplicationNumbers.map(colNum => {
+                                    const color = getColorForMultiplication(rowNum, colNum);
+                                    return (
+                                        <View
+                                            key={`${rowNum}-${colNum}`}
+                                            style={[styles.cellSmall, { backgroundColor: color }]}
+                                        />
+                                    );
+                                })}
+                            </View>
+                        ))}
+                    </View>
                 </View>
-            </ScrollView>
+            ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainer}>
+                    <View style={styles.grid}>
+                        {/* Header Row */}
+                        <View style={styles.row}>
+                            <View style={styles.headerCellPlaceholder} />
+                            {additionRanges.map(range => (
+                                <View key={`h-${range.label}`} style={styles.headerCell}>
+                                    <Text style={styles.headerText}>{range.label}</Text>
+                                </View>
+                            ))}
+                        </View>
+
+                        {/* Data Rows */}
+                        {additionRanges.map(rowRange => (
+                            <View key={`row-${rowRange.label}`} style={styles.row}>
+                                <View style={styles.headerCell}>
+                                    <Text style={styles.headerText}>{rowRange.label}</Text>
+                                </View>
+                                {additionRanges.map(colRange => {
+                                    const color = getColorForAdditionRange(rowRange, colRange);
+                                    return (
+                                        <View
+                                            key={`${rowRange.label}-${colRange.label}`}
+                                            style={[styles.cell, { backgroundColor: color }]}
+                                        />
+                                    );
+                                })}
+                            </View>
+                        ))}
+                    </View>
+                </ScrollView>
+            )}
+
 
             {/* LEGEND */}
             <View style={styles.legend}>
@@ -171,46 +173,46 @@ const styles = StyleSheet.create({
     tabActive: { backgroundColor: COLORS.neonGreen },
     tabText: { fontSize: 16, fontWeight: 'bold', color: COLORS.textSecondary },
     tabTextActive: { color: COLORS.black },
-    
+
     grid: { flexDirection: 'column' },
     row: { flexDirection: 'row', alignItems: 'center' },
 
     // --- STYLES MULTIPLICATION (Alignés sur MULT_TOTAL_SIZE = 20px) ---
-    headerCellSmall: { 
-        width: MULT_TOTAL_SIZE, 
-        height: 20, 
-        justifyContent: 'center', 
-        alignItems: 'center' 
+    headerCellSmall: {
+        width: MULT_TOTAL_SIZE,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center'
     },
     headerCellSmallPlaceholder: {
         width: MULT_TOTAL_SIZE,
         height: 20,
     },
     headerTextSmall: { color: COLORS.textSecondary, fontSize: 8, fontWeight: 'bold' },
-    cellSmall: { 
-        width: MULT_CELL_SIZE, 
-        height: MULT_CELL_SIZE, 
-        margin: MULT_CELL_MARGIN, 
-        borderRadius: 2 
+    cellSmall: {
+        width: MULT_CELL_SIZE,
+        height: MULT_CELL_SIZE,
+        margin: MULT_CELL_MARGIN,
+        borderRadius: 2
     },
 
     // --- STYLES ADDITION (Alignés sur ADD_TOTAL_SIZE = 40px) ---
-    headerCell: { 
-        width: ADD_TOTAL_SIZE, 
-        height: 20, 
-        justifyContent: 'center', 
-        alignItems: 'center' 
+    headerCell: {
+        width: ADD_TOTAL_SIZE,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center'
     },
     headerCellPlaceholder: {
         width: ADD_TOTAL_SIZE,
         height: 20,
     },
     headerText: { color: COLORS.textSecondary, fontSize: 9, fontWeight: 'bold' },
-    cell: { 
-        width: ADD_CELL_SIZE, 
-        height: 18, 
-        margin: ADD_CELL_MARGIN, 
-        borderRadius: 3 
+    cell: {
+        width: ADD_CELL_SIZE,
+        height: 18,
+        margin: ADD_CELL_MARGIN,
+        borderRadius: 3
     },
 
     legend: { flexDirection: 'row', gap: 15, marginTop: 10 },

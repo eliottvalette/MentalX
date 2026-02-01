@@ -65,7 +65,7 @@ export const useGameLogic = (mode: GameMode) => {
         if (questionTimer.current) clearInterval(questionTimer.current);
         setQuestionTimeProgress(1.0);
 
-        const step = 100;
+        const step = 16; // 60fps for smooth animation
         const totalSteps = (MARATHON_QUESTION_TIME * 1000) / step;
         let currentStep = 0;
 
@@ -137,7 +137,7 @@ export const useGameLogic = (mode: GameMode) => {
     const logResult = async (playerAnswer: number, isCorrect: boolean) => {
         if (!currentQuestion || !questionStartTime.current) return;
         const responseTime = (new Date().getTime() - questionStartTime.current.getTime()) / 1000;
-        
+
         // 1. Sauvegarde le log brut (Historique global)
         const result = persistenceService.createGameResult(
             mode,

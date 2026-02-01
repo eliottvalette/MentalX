@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { GameMode, SRSItem } from '../types';
 import { COLORS, FONTS } from '../constants/theme';
@@ -42,7 +42,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
 
     return (
         <BackgroundWrapper>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.scrollContent}>
                 <View style={styles.header}>
                     <Text style={styles.headerText}>MENTAL CORE</Text>
                 </View>
@@ -74,7 +74,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
                         onPress={() => navigation.navigate('ActiveGame', { mode: GameMode.TRAINING })}
                     />
                 </View>
-            </ScrollView>
+            </View>
         </BackgroundWrapper>
     );
 };
