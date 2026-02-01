@@ -1,82 +1,112 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { hapticManager } from '../utils/haptics';
 
-interface NumberPadProps {
-    onTap: (num: string) => void;
-    onDelete: () => void;
-}
+const GlowButton = ({ num, onPress, isDelete = false }: any) => {
+    const animValue = useRef(new Animated.Value(0)).current;
 
-export const NumberPad: React.FC<NumberPadProps> = ({ onTap, onDelete }) => {
-    const handleTap = (num: string) => {
+    const handlePressIn = () => {
         hapticManager.playKeypadTap();
-        onTap(num);
+        Animated.timing(animValue, {
+            toValue: 1,
+            duration: 50,
+            useNativeDriver: false,
+        }).start();
+        onPress();
     };
 
-    const handleDelete = () => {
-        hapticManager.playKeypadTap();
-        onDelete();
+    const handlePressOut = () => {
+        Animated.timing(animValue, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: false,
+        }).start();
     };
 
+    const backgroundColor = animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [
+            COLORS.cyberCard,
+            'rgba(255, 255, 255, 0.25)'
+        ]
+    });
+
+    const borderColor = animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [
+            'rgba(255, 255, 255, 0.05)',
+            'rgba(255, 255, 255, 0.5)'
+        ]
+    });
+
+    return (
+        <Pressable
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            style={{ flex: 1, marginHorizontal: 8 }}
+        >
+            <Animated.View style={[
+                styles.button,
+                {
+                    backgroundColor,
+                    borderColor
+                }
+            ]}>
+                <Text style={[
+                    styles.buttonText,
+                    isDelete && { color: COLORS.neonRed }
+                ]}>
+                    {num}
+                </Text>
+            </Animated.View>
+        </Pressable>
+    );
+};
+
+export const NumberPad: React.FC<{ onTap: (n: string) => void; onDelete: () => void }> = ({ onTap, onDelete }) => {
     return (
         <View style={styles.container}>
             <View style={styles.row}>
-                <NumberButton num="1" onPress={handleTap} />
-                <NumberButton num="2" onPress={handleTap} />
-                <NumberButton num="3" onPress={handleTap} />
+                <GlowButton num="1" onPress={() => onTap("1")} />
+                <GlowButton num="2" onPress={() => onTap("2")} />
+                <GlowButton num="3" onPress={() => onTap("3")} />
             </View>
             <View style={styles.row}>
-                <NumberButton num="4" onPress={handleTap} />
-                <NumberButton num="5" onPress={handleTap} />
-                <NumberButton num="6" onPress={handleTap} />
+                <GlowButton num="4" onPress={() => onTap("4")} />
+                <GlowButton num="5" onPress={() => onTap("5")} />
+                <GlowButton num="6" onPress={() => onTap("6")} />
             </View>
             <View style={styles.row}>
-                <NumberButton num="7" onPress={handleTap} />
-                <NumberButton num="8" onPress={handleTap} />
-                <NumberButton num="9" onPress={handleTap} />
+                <GlowButton num="7" onPress={() => onTap("7")} />
+                <GlowButton num="8" onPress={() => onTap("8")} />
+                <GlowButton num="9" onPress={() => onTap("9")} />
             </View>
             <View style={styles.row}>
-                <View style={styles.button} />
-                <NumberButton num="0" onPress={handleTap} />
-                <TouchableOpacity style={styles.button} onPress={handleDelete}>
-                    <Text style={[styles.buttonText, { color: COLORS.neonRed }]}>⌫</Text>
-                </TouchableOpacity>
+                <View style={{ flex: 1, marginHorizontal: 8 }} />
+                <GlowButton num="0" onPress={() => onTap("0")} />
+                <GlowButton num="⌫" onPress={onDelete} isDelete />
             </View>
         </View>
     );
 };
 
-interface NumberButtonProps {
-    num: string;
-    onPress: (num: string) => void;
-}
-
-const NumberButton: React.FC<NumberButtonProps> = ({ num, onPress }) => (
-    <TouchableOpacity style={styles.button} onPress={() => onPress(num)}>
-        <Text style={styles.buttonText}>{num}</Text>
-    </TouchableOpacity>
-);
-
 const styles = StyleSheet.create({
     container: {
         padding: 16,
+        marginBottom: 20
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 20,
+        marginBottom: 16,
     },
     button: {
-        flex: 1,
-        marginHorizontal: 8,
-        height: 60,
-        backgroundColor: '#1C1C1E',
+        height: 65,
         borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
     },
     buttonText: {
         fontSize: 28,

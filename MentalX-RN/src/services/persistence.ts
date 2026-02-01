@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameResult, GameMode, Question } from '../types';
 
 const RESULTS_KEY = 'gameResults';
-const MAX_RESULTS = 1000;
+const MAX_RESULTS = 2000;
 
 class PersistenceService {
     async loadResults(): Promise<GameResult[]> {
@@ -17,6 +17,27 @@ class PersistenceService {
         } catch (error) {
             console.error('Failed to load results:', error);
             return [];
+        }
+    }
+
+    async getHighScore(mode: GameMode): Promise<number> {
+        try {
+            const stored = await AsyncStorage.getItem(`highScore_${mode}`);
+            return stored ? parseInt(stored, 10) : 0;
+        } catch (error) {
+            console.error('Failed to load high score:', error);
+            return 0;
+        }
+    }
+
+    async saveHighScore(mode: GameMode, score: number): Promise<void> {
+        try {
+            const current = await this.getHighScore(mode);
+            if (score > current) {
+                await AsyncStorage.setItem(`highScore_${mode}`, score.toString());
+            }
+        } catch (error) {
+            console.error('Failed to save high score:', error);
         }
     }
 
@@ -37,7 +58,8 @@ class PersistenceService {
         mode: GameMode,
         question: Question,
         userAnswer: number,
-        responseTime: number
+        responseTime: number,
+        isCorrect: boolean
     ): GameResult {
         return {
             id: Math.random().toString(36).substr(2, 9),
@@ -45,7 +67,7 @@ class PersistenceService {
             question: question.text,
             answer: question.answer,
             userAnswer,
-            isCorrect: userAnswer === question.answer,
+            isCorrect,
             responseTime,
             timestamp: new Date(),
         };

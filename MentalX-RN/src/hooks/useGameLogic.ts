@@ -4,17 +4,25 @@ import { questionGenerator } from '../utils/questionGenerator';
 import { hapticManager } from '../utils/haptics';
 import { persistenceService } from '../services/persistence';
 
-const MAX_TIME = 60.0;
+const SPRINT_TIME = 60.0;
+const MARATHON_QUESTION_TIME = 10.0;
+const MAX_LIVES = 3;
 
 export const useGameLogic = (mode: GameMode) => {
     const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
     const [input, setInput] = useState('');
-    const [timeRemaining, setTimeRemaining] = useState(mode === GameMode.SPRINT ? MAX_TIME : 0);
+
+    const [globalTimeRemaining, setGlobalTimeRemaining] = useState(mode === GameMode.SPRINT ? SPRINT_TIME : 0);
+    const [questionTimeProgress, setQuestionTimeProgress] = useState(1.0);
+
     const [score, setScore] = useState(0);
+    const [lives, setLives] = useState(MAX_LIVES);
     const [isGameOver, setIsGameOver] = useState(false);
+    const [successTrigger, setSuccessTrigger] = useState(0);
 
     const questionStartTime = useRef<Date | null>(null);
-    const timerInterval = useRef<NodeJS.Timeout | null>(null);
+    const globalTimer = useRef<NodeJS.Timeout | null>(null);
+    const questionTimer = useRef<NodeJS.Timeout | null>(null);
 
     const nextQuestion = () => {
         let question: Question;
@@ -25,14 +33,22 @@ export const useGameLogic = (mode: GameMode) => {
             const randomType = types[Math.floor(Math.random() * types.length)];
             question = questionGenerator.generate(randomType);
         }
+
         setCurrentQuestion(question);
+        setInput('');
         questionStartTime.current = new Date();
+
+        if (mode === GameMode.MARATHON) {
+            startQuestionTimer();
+        }
     };
 
-    const startTimer = () => {
-        timerInterval.current = setInterval(() => {
-            setTimeRemaining((prev) => {
-                if (prev <= 0) {
+    const startGlobalTimer = () => {
+        if (mode !== GameMode.SPRINT) return;
+
+        globalTimer.current = setInterval(() => {
+            setGlobalTimeRemaining((prev) => {
+                if (prev <= 1) {
                     endGame();
                     return 0;
                 }
@@ -41,93 +57,122 @@ export const useGameLogic = (mode: GameMode) => {
         }, 1000);
     };
 
-    const endGame = () => {
-        setIsGameOver(true);
-        if (timerInterval.current) {
-            clearInterval(timerInterval.current);
-        }
+    const startQuestionTimer = () => {
+        if (questionTimer.current) clearInterval(questionTimer.current);
+        setQuestionTimeProgress(1.0);
+
+        const step = 100;
+        const totalSteps = (MARATHON_QUESTION_TIME * 1000) / step;
+        let currentStep = 0;
+
+        questionTimer.current = setInterval(() => {
+            currentStep++;
+            const progress = 1.0 - (currentStep / totalSteps);
+            setQuestionTimeProgress(progress);
+
+            if (progress <= 0) {
+                handleMarathonTimeout();
+            }
+        }, step);
     };
 
-    const handleCorrectAnswer = async (playerAnswer: number) => {
-        hapticManager.playSuccess();
-        setScore((prev) => prev + 1);
-        await logResult(playerAnswer);
-        setInput('');
-        nextQuestion();
-    };
-
-    const handleWrongAnswer = async (playerAnswer: number) => {
+    const handleMarathonTimeout = () => {
+        if (questionTimer.current) clearInterval(questionTimer.current);
         hapticManager.playError();
-        await logResult(playerAnswer);
-        setInput('');
-
-        if (mode === GameMode.MARATHON) {
-            endGame();
-        }
+        loseLife();
     };
 
-    const logResult = async (playerAnswer: number) => {
-        if (!currentQuestion || !questionStartTime.current) return;
+    const loseLife = () => {
+        setLives((prev) => {
+            const newLives = prev - 1;
+            if (newLives <= 0) {
+                endGame();
+                return 0;
+            }
+            nextQuestion();
+            return newLives;
+        });
+    };
 
-        const responseTime = (new Date().getTime() - questionStartTime.current.getTime()) / 1000;
-        const result = persistenceService.createGameResult(
-            mode,
-            currentQuestion,
-            playerAnswer,
-            responseTime
-        );
-        await persistenceService.saveResult(result);
+    const endGame = async () => {
+        setIsGameOver(true);
+        clearIntervals();
+        await persistenceService.saveHighScore(mode, score);
+    };
+
+    const clearIntervals = () => {
+        if (globalTimer.current) clearInterval(globalTimer.current);
+        if (questionTimer.current) clearInterval(questionTimer.current);
     };
 
     const validateAnswer = (playerAnswer: number) => {
         if (!currentQuestion) return;
 
-        if (playerAnswer === currentQuestion.answer) {
-            handleCorrectAnswer(playerAnswer);
+        const isCorrect = playerAnswer === currentQuestion.answer;
+
+        logResult(playerAnswer, isCorrect);
+
+        if (isCorrect) {
+            hapticManager.playSuccess();
+            setSuccessTrigger((prev) => prev + 1);
+            setScore((s) => s + 1);
+            nextQuestion();
         } else if (String(playerAnswer).length >= String(currentQuestion.answer).length) {
-            handleWrongAnswer(playerAnswer);
+            hapticManager.playError();
+
+            if (mode === GameMode.MARATHON) {
+                loseLife();
+            } else {
+                setInput('');
+            }
         }
+    };
+
+    const logResult = async (playerAnswer: number, isCorrect: boolean) => {
+        if (!currentQuestion || !questionStartTime.current) return;
+        const responseTime = (new Date().getTime() - questionStartTime.current.getTime()) / 1000;
+        const result = persistenceService.createGameResult(
+            mode,
+            currentQuestion,
+            playerAnswer,
+            responseTime,
+            isCorrect
+        );
+        await persistenceService.saveResult(result);
     };
 
     const submitInput = (value: string) => {
         const newInput = input + value;
         setInput(newInput);
-        const playerAnswer = parseInt(newInput, 10);
-        if (!isNaN(playerAnswer)) {
-            validateAnswer(playerAnswer);
-        }
+        const val = parseInt(newInput, 10);
+        if (!isNaN(val)) validateAnswer(val);
     };
 
     const deleteInput = () => {
-        if (input.length > 0) {
-            setInput(input.slice(0, -1));
-        }
+        setInput((prev) => prev.slice(0, -1));
     };
 
     useEffect(() => {
         setScore(0);
-        setInput('');
+        setLives(MAX_LIVES);
         setIsGameOver(false);
-        setTimeRemaining(mode === GameMode.SPRINT ? MAX_TIME : 0);
+        setGlobalTimeRemaining(mode === GameMode.SPRINT ? SPRINT_TIME : 0);
+
         nextQuestion();
+        startGlobalTimer();
 
-        if (mode === GameMode.SPRINT) {
-            startTimer();
-        }
-
-        return () => {
-            if (timerInterval.current) {
-                clearInterval(timerInterval.current);
-            }
-        };
+        return () => clearIntervals();
     }, [mode]);
 
     return {
         currentQuestion,
         input,
-        timeRemaining,
+        globalTimeRemaining,
+        questionTimeProgress,
         score,
+        lives,
         isGameOver,
+        successTrigger,
         submitInput,
         deleteInput,
     };
