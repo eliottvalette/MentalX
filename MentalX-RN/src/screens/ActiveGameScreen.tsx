@@ -5,10 +5,14 @@ import { COLORS, FONTS } from '../constants/theme';
 import { useGameLogic } from '../hooks/useGameLogic';
 import { NumberPad } from '../components/NumberPad';
 
-interface ActiveGameScreenProps {
-    route: any;
-    navigation: any;
-}
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+
+type RootStackParamList = {
+    Dashboard: undefined;
+    ActiveGame: { mode: GameMode };
+};
+
+type ActiveGameScreenProps = NativeStackScreenProps<RootStackParamList, 'ActiveGame'>;
 
 export const ActiveGameScreen: React.FC<ActiveGameScreenProps> = ({ route, navigation }) => {
     const { mode } = route.params as { mode: GameMode };
@@ -96,7 +100,6 @@ const styles = StyleSheet.create({
         fontSize: FONTS.title2,
         color: COLORS.neonGreen,
         fontWeight: '600',
-        fontFamily: 'monospace',
     },
     questionArea: {
         flex: 1,
@@ -108,7 +111,6 @@ const styles = StyleSheet.create({
         fontSize: FONTS.huge,
         fontWeight: 'bold',
         color: COLORS.textPrimary,
-        fontFamily: 'monospace',
         marginBottom: 10,
     },
     inputText: {

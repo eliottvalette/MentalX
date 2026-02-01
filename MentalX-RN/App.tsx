@@ -5,7 +5,14 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { ActiveGameScreen } from './src/screens/ActiveGameScreen';
 
-const Stack = createNativeStackNavigator();
+import { GameMode } from './src/types';
+
+type RootStackParamList = {
+  Dashboard: undefined;
+  ActiveGame: { mode: GameMode };
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
@@ -14,14 +21,13 @@ export default function App() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#0A0A0A' },
+          contentStyle: { backgroundColor: '#040404' },
         }}
       >
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
         <Stack.Screen
           name="ActiveGame"
           component={ActiveGameScreen}
-          options={{ animation: 'fade' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -1,31 +1,36 @@
 export const COLORS = {
-    cyberBackground: '#0A0A0A',
-    cyberCard: '#1C1C1E',
-    neonGreen: '#33C759',
-    neonRed: '#FF3B30',
+    // Backgrounds
+    cyberBackground: '#040404', // Noir profond
+    cyberCard: '#121214',       // Gris très sombre légèrement bleuté
+    black: '#000000',
+
+    // Accents
+    neonGreen: '#20C759', // Vert électrique type Terminal
+    neonRed: '#FF3B30',   // Rouge alerte
+    orange: '#FF9500',
+
+    // Text
     textPrimary: '#FFFFFF',
     textSecondary: '#8E8E93',
-    orange: '#FF9500',
-    black: '#000000',
-    clear: 'transparent',
+
+    // UI Elements
+    borderSubtle: 'rgba(255, 255, 255, 0.08)', // Bordures fines
 };
 
 export const SPACING = {
     xs: 4,
     sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    xxl: 24,
+    md: 16,
+    lg: 24,
+    xl: 32,
 };
 
 export const FONTS = {
-    tiny: 12,
-    caption: 13,
-    body: 17,
-    headline: 18,
-    title2: 24,
-    title: 28,
-    largeTitle: 34,
     huge: 48,
+    largeTitle: 34,
+    title: 28,
+    title2: 22,
+    headline: 17,
+    body: 15,
+    caption: 12,
 };

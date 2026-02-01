@@ -13,15 +13,20 @@ export const CyberCard: React.FC<CyberCardProps> = ({ children, style }) => (
 
 const styles = StyleSheet.create({
     card: {
-        padding: 16,
         backgroundColor: COLORS.cyberCard,
         borderRadius: 16,
+        padding: 16,
+        // BORDURE FINE pour l'effet "Sharp"
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.05)',
-        shadowColor: COLORS.black,
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.5,
-        shadowRadius: 10,
-        elevation: 5,
+        borderColor: COLORS.borderSubtle,
+        // OMBRE pour la profondeur
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 4.65,
+        elevation: 8,
     },
 });

@@ -11,11 +11,11 @@ interface SRSListRowProps {
 const getStatusIcon = (status: SRSStatus): string => {
     switch (status) {
         case SRSStatus.CRITICAL:
-            return '!';
+            return '!!';
         case SRSStatus.UNSTABLE:
-            return '↻';
+            return '??';
         case SRSStatus.STABLE:
-            return '✓';
+            return 'OK';
         default:
             return '';
     }
@@ -123,7 +123,6 @@ const styles = StyleSheet.create({
         fontSize: FONTS.title2,
         fontWeight: 'bold',
         color: COLORS.textPrimary,
-        fontFamily: 'monospace',
     },
     stats: {
         flexDirection: 'row',

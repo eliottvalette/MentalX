@@ -8,8 +8,15 @@ import { calculateSRSItems } from '../utils/srsLogic';
 import { CognitiveLoadChart } from '../components/CognitiveLoadChart';
 import { SRSListRow } from '../components/SRSListRow';
 
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+type RootStackParamList = {
+    Dashboard: undefined;
+    ActiveGame: { mode: GameMode };
+};
+
 interface DashboardScreenProps {
-    navigation: any;
+    navigation: NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
@@ -40,38 +47,48 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.header}>
                     <Text style={styles.headerText}>MENTAL CORE</Text>
+                    <View style={styles.statusBadge}>
+                        <View style={styles.onlineDot} />
+                        <Text style={styles.statusText}>SYSTEM ONLINE</Text>
+                    </View>
                 </View>
 
-                {srsItems.length > 0 && (
-                    <>
-                        <CognitiveLoadChart items={srsItems} />
+                {/* Toujours afficher le Chart, il gérera son état vide lui-même */}
+                <CognitiveLoadChart items={srsItems} />
 
-                        <View style={styles.threatLogSection}>
-                            <Text style={styles.sectionTitle}>THREAT LOG</Text>
-                            {criticalItems.slice(0, 4).map((item) => (
-                                <SRSListRow key={item.id} item={item} />
-                            ))}
+                <View style={styles.threatLogSection}>
+                    <Text style={styles.sectionTitle}>THREAT LOG</Text>
+
+                    {criticalItems.length > 0 ? (
+                        criticalItems.slice(0, 4).map((item) => (
+                            <SRSListRow key={item.id} item={item} />
+                        ))
+                    ) : (
+                        // Placeholder pour la liste vide
+                        <View style={styles.emptyLog}>
+                            <Text style={styles.emptyLogText}>NO ACTIVE THREATS DETECTED</Text>
+                            <Text style={styles.emptyLogSub}>Start training to calibrate algorithm</Text>
                         </View>
-                    </>
-                )}
+                    )}
+                </View>
 
                 <View style={styles.modesSection}>
                     <ModeButton
                         title="Sprint"
                         subtitle="60s max score"
-                        icon="⏱️"
+                        icon="SP"
                         onPress={() => navigation.navigate('ActiveGame', { mode: GameMode.SPRINT })}
                     />
                     <ModeButton
                         title="Marathon"
                         subtitle="Until first error"
-                        icon="🔥"
+                        icon="MA"
                         onPress={() => navigation.navigate('ActiveGame', { mode: GameMode.MARATHON })}
                     />
                     <ModeButton
                         title="Training"
                         subtitle="SRS adaptive"
-                        icon="🏋️"
+                        icon="TR"
                         onPress={() => navigation.navigate('ActiveGame', { mode: GameMode.TRAINING })}
                     />
                 </View>
@@ -107,16 +124,33 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     header: {
-        paddingVertical: 16,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 20,
+        marginBottom: 10
     },
-    headerText: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: COLORS.textPrimary,
-    },
+    headerText: { fontSize: 24, fontWeight: '900', color: COLORS.textPrimary, letterSpacing: 1 },
+    statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(32, 199, 89, 0.1)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
+    onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.neonGreen, marginRight: 6 },
+    statusText: { fontSize: 10, color: COLORS.neonGreen, fontWeight: 'bold' },
+
     threatLogSection: {
         marginTop: 20,
     },
+    emptyLog: {
+        padding: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.02)',
+        borderRadius: 12,
+        borderStyle: 'dashed',
+        borderWidth: 1,
+        borderColor: COLORS.textSecondary,
+    },
+    emptyLogText: { color: COLORS.textSecondary, fontWeight: 'bold', marginBottom: 4 },
+    emptyLogSub: { color: COLORS.textSecondary, fontSize: 10, opacity: 0.7 },
+
     sectionTitle: {
         fontSize: FONTS.caption,
         fontWeight: '800',
@@ -142,6 +176,7 @@ const styles = StyleSheet.create({
         marginRight: 16,
         width: 40,
         textAlign: 'center',
+        color: COLORS.textPrimary,
     },
     modeTextContainer: {
         flex: 1,
