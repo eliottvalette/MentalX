@@ -5,9 +5,10 @@ import { COLORS } from '../constants/theme';
 
 interface SuccessFlashProps {
     trigger: number;
+    isError?: boolean;
 }
 
-export const SuccessFlash: React.FC<SuccessFlashProps> = ({ trigger }) => {
+export const SuccessFlash: React.FC<SuccessFlashProps> = ({ trigger, isError = false }) => {
     const opacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -21,18 +22,22 @@ export const SuccessFlash: React.FC<SuccessFlashProps> = ({ trigger }) => {
         }
     }, [trigger]);
 
+    const color = isError ? 'rgba(255, 59, 48, 0.5)' : 'rgba(32, 199, 89, 0.4)';
+
     return (
         <View style={styles.container} pointerEvents="none">
             <Animated.View style={[styles.overlay, { opacity }]}>
                 <LinearGradient
-                    colors={[
-                        'rgba(32, 199, 89, 0.4)',
-                        'rgba(32, 199, 89, 0)',
-                        'rgba(32, 199, 89, 0)',
-                        'rgba(32, 199, 89, 0.4)',
-                    ]}
+                    colors={[color, 'transparent', 'transparent', color]}
                     locations={[0, 0.15, 0.85, 1]}
-                    style={styles.gradient}
+                    style={styles.gradientVertical}
+                />
+                <LinearGradient
+                    colors={[color, 'transparent', 'transparent', color]}
+                    locations={[0, 0.15, 0.85, 1]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.gradientHorizontal}
                 />
             </Animated.View>
         </View>
@@ -47,7 +52,10 @@ const styles = StyleSheet.create({
     overlay: {
         flex: 1,
     },
-    gradient: {
-        flex: 1,
+    gradientVertical: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    gradientHorizontal: {
+        ...StyleSheet.absoluteFillObject,
     },
 });

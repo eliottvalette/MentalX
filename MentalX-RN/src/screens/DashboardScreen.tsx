@@ -4,9 +4,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { GameMode, SRSItem } from '../types';
 import { COLORS, FONTS } from '../constants/theme';
 import { persistenceService } from '../services/persistence';
-import { calculateSRSItems } from '../utils/srsLogic';
 import { SRSHeatmap } from '../components/SRSHeatmap';
+import { BackgroundWrapper } from '../components/BackgroundWrapper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Zap, Flame, Brain } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type RootStackParamList = {
     Dashboard: undefined;
@@ -23,8 +25,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     const [marathonRecord, setMarathonRecord] = useState(0);
 
     const loadData = async () => {
-        const results = await persistenceService.loadResults();
-        const items = calculateSRSItems(results);
+        const items = await persistenceService.getAllSRSItems();
         setSrsItems(items);
 
         const sScore = await persistenceService.getHighScore(GameMode.SPRINT);
@@ -40,7 +41,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     );
 
     return (
-        <View style={styles.container}>
+        <BackgroundWrapper>
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.header}>
                     <Text style={styles.headerText}>MENTAL CORE</Text>
@@ -55,54 +56,63 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
                         title="Sprint"
                         subtitle="60s Time Attack"
                         stat={`${sprintRecord} pts`}
-                        icon="SP"
+                        icon={<Zap size={20} color={COLORS.textPrimary} />}
                         onPress={() => navigation.navigate('ActiveGame', { mode: GameMode.SPRINT })}
                     />
                     <ModeButton
                         title="Marathon"
                         subtitle="3 Lives • 10s Limit"
                         stat={`${marathonRecord} pts`}
-                        icon="MA"
+                        icon={<Flame size={20} color={COLORS.textPrimary} />}
                         onPress={() => navigation.navigate('ActiveGame', { mode: GameMode.MARATHON })}
                     />
                     <ModeButton
                         title="Training"
                         subtitle="Adaptive Learning"
                         stat="SRS"
-                        icon="TR"
+                        icon={<Brain size={20} color={COLORS.textPrimary} />}
                         onPress={() => navigation.navigate('ActiveGame', { mode: GameMode.TRAINING })}
                     />
                 </View>
             </ScrollView>
-        </View>
+        </BackgroundWrapper>
     );
 };
 
 const ModeButton = ({ title, subtitle, stat, icon, onPress }: any) => (
-    <TouchableOpacity style={styles.modeButton} onPress={onPress}>
-        <Text style={styles.modeIcon}>{icon}</Text>
-        <View style={styles.modeTextContainer}>
-            <Text style={styles.modeTitle}>{title}</Text>
-            <Text style={styles.modeSubtitle}>{subtitle}</Text>
-        </View>
-        <View style={styles.statBadge}>
-            <Text style={styles.statText}>{stat}</Text>
-        </View>
+    <TouchableOpacity onPress={onPress} style={{ marginBottom: 12 }}>
+        <LinearGradient
+            colors={[COLORS.cardGradientStart, COLORS.cardGradientEnd]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.modeButton}
+        >
+            <View style={styles.iconContainer}>
+                {icon}
+            </View>
+            <View style={styles.modeTextContainer}>
+                <Text style={styles.modeTitle}>{title}</Text>
+                <Text style={styles.modeSubtitle}>{subtitle}</Text>
+            </View>
+            <View style={styles.statBadge}>
+                <Text style={styles.statText}>{stat}</Text>
+            </View>
+        </LinearGradient>
     </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.cyberBackground },
-    scrollContent: { padding: 16 },
-    header: { paddingVertical: 20, marginBottom: 10 },
-    headerText: { fontSize: 24, fontWeight: '900', color: COLORS.textPrimary, letterSpacing: 1 },
-    sectionTitle: { fontSize: FONTS.caption, fontWeight: '800', color: COLORS.textSecondary, marginBottom: 12, paddingLeft: 4 },
-    modesSection: { marginTop: 10 },
-    modeButton: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: COLORS.cyberCard, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', marginBottom: 12 },
-    modeIcon: { fontSize: 24, marginRight: 16, color: COLORS.textPrimary },
+    scrollContent: { padding: 16, paddingTop: 60 },
+    header: { paddingVertical: 10, marginBottom: 2 },
+    headerText: { fontSize: 22, fontWeight: '600', color: COLORS.textPrimary, letterSpacing: 2, textTransform: 'uppercase' },
+    sectionTitle: { fontSize: 10, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8, paddingLeft: 4, letterSpacing: 1, textTransform: 'uppercase' },
+    modesSection: { marginTop: 2 },
+    modeButton: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 8, borderWidth: 1, borderColor: COLORS.borderSubtle },
+    iconContainer: { width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    modeIcon: { fontSize: 18, color: COLORS.textPrimary },
     modeTextContainer: { flex: 1 },
-    modeTitle: { fontSize: FONTS.headline, fontWeight: 'bold', color: COLORS.textPrimary },
-    modeSubtitle: { fontSize: FONTS.caption, color: COLORS.textSecondary },
-    statBadge: { backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-    statText: { color: COLORS.neonGreen, fontWeight: 'bold', fontSize: 12 },
+    modeTitle: { fontSize: 16, fontWeight: '500', color: COLORS.textPrimary, marginBottom: 2 },
+    modeSubtitle: { fontSize: 12, color: COLORS.textSecondary },
+    statBadge: { backgroundColor: 'rgba(40, 217, 102, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    statText: { color: COLORS.neonGreen, fontWeight: '600', fontSize: 11 },
 });

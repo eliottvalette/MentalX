@@ -27,8 +27,8 @@ const GlowButton = ({ num, onPress, isDelete = false }: any) => {
     const backgroundColor = animValue.interpolate({
         inputRange: [0, 1],
         outputRange: [
-            COLORS.cyberCard,
-            'rgba(255, 255, 255, 0.25)'
+            'rgba(255,255,255,0.03)',
+            'rgba(255, 255, 255, 0.2)'
         ]
     });
 
@@ -94,23 +94,23 @@ export const NumberPad: React.FC<{ onTap: (n: string) => void; onDelete: () => v
 const styles = StyleSheet.create({
     container: {
         padding: 16,
-        marginBottom: 20
+        marginBottom: 30
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 16,
+        marginBottom: 12,
     },
     button: {
-        height: 65,
-        borderRadius: 12,
+        height: 60,
+        borderRadius: 10,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
     },
     buttonText: {
-        fontSize: 28,
-        fontWeight: '500',
+        fontSize: 24,
+        fontWeight: '400',
         color: COLORS.textPrimary,
     },
 });

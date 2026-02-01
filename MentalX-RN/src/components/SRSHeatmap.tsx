@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { SRSItem, SRSStatus } from '../types';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SRSItem } from '../types';
 import { COLORS, FONTS } from '../constants/theme';
 import { CyberCard } from './CyberCard';
+import { interpolateColor } from '../utils/srsAlgorithm';
 
 interface SRSHeatmapProps {
     items: SRSItem[];
@@ -25,15 +26,15 @@ export const SRSHeatmap: React.FC<SRSHeatmapProps> = ({ items }) => {
         { label: '91-99', min: 91, max: 99 },
     ];
 
-    const getStatusForMultiplication = (a: number, b: number): string => {
+    const getColorForMultiplication = (a: number, b: number): string => {
         const op1 = `${a} × ${b}`;
         const op2 = `${b} × ${a}`;
         const item = items.find(i => i.operation === op1 || i.operation === op2);
-        if (!item) return 'EMPTY';
-        return item.status;
+        if (!item) return '#1C1C1E'; // Empty state (Dark)
+        return interpolateColor(item.mastery);
     };
 
-    const getStatusForAdditionRange = (rangeA: any, rangeB: any): string => {
+    const getColorForAdditionRange = (rangeA: any, rangeB: any): string => {
         const relevantItems = items.filter(item => {
             if (!item.operation.includes('+')) return false;
             const parts = item.operation.split(' + ').map(p => parseInt(p.trim()));
@@ -43,25 +44,15 @@ export const SRSHeatmap: React.FC<SRSHeatmapProps> = ({ items }) => {
                 (b >= rangeA.min && b <= rangeA.max && a >= rangeB.min && a <= rangeB.max);
         });
 
-        if (relevantItems.length === 0) return 'EMPTY';
+        if (relevantItems.length === 0) return '#1C1C1E';
 
         const avgMastery = relevantItems.reduce((sum, item) => sum + item.mastery, 0) / relevantItems.length;
-        if (avgMastery < 0.4) return SRSStatus.CRITICAL;
-        if (avgMastery < 0.8) return SRSStatus.UNSTABLE;
-        return SRSStatus.STABLE;
-    };
-
-    const getColor = (status: string) => {
-        switch (status) {
-            case SRSStatus.STABLE: return COLORS.neonGreen;
-            case SRSStatus.UNSTABLE: return COLORS.orange;
-            case SRSStatus.CRITICAL: return COLORS.neonRed;
-            default: return '#1C1C1E';
-        }
+        return interpolateColor(avgMastery);
     };
 
     return (
         <CyberCard style={styles.container}>
+            {/* TABS */}
             <View style={styles.tabContainer}>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'mult' && styles.tabActive]}
@@ -77,68 +68,78 @@ export const SRSHeatmap: React.FC<SRSHeatmapProps> = ({ items }) => {
                 </TouchableOpacity>
             </View>
 
-            {activeTab === 'mult' ? (
-                <View style={styles.grid}>
-                    <View style={styles.row}>
-                        <View style={styles.headerCell} />
-                        {multiplicationNumbers.map(n => (
-                            <View key={`h-${n}`} style={styles.headerCellSmall}>
-                                <Text style={styles.headerTextSmall}>{n}</Text>
+            {/* CONTENT WITH SCROLLVIEW */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollContainer}>
+                <View>
+                    {activeTab === 'mult' ? (
+                        <View style={styles.grid}>
+                            {/* Header Row */}
+                            <View style={styles.row}>
+                                <View style={styles.headerCellSmallPlaceholder} />
+                                {multiplicationNumbers.map(n => (
+                                    <View key={`h-${n}`} style={styles.headerCellSmall}>
+                                        <Text style={styles.headerTextSmall}>{n}</Text>
+                                    </View>
+                                ))}
                             </View>
-                        ))}
-                    </View>
 
-                    {multiplicationNumbers.map(rowNum => (
-                        <View key={`row-${rowNum}`} style={styles.row}>
-                            <View style={styles.headerCellSmall}>
-                                <Text style={styles.headerTextSmall}>{rowNum}</Text>
-                            </View>
-                            {multiplicationNumbers.map(colNum => {
-                                const status = getStatusForMultiplication(rowNum, colNum);
-                                return (
-                                    <View
-                                        key={`${rowNum}-${colNum}`}
-                                        style={[styles.cellSmall, { backgroundColor: getColor(status) }]}
-                                    />
-                                );
-                            })}
+                            {/* Data Rows */}
+                            {multiplicationNumbers.map(rowNum => (
+                                <View key={`row-${rowNum}`} style={styles.row}>
+                                    <View style={styles.headerCellSmall}>
+                                        <Text style={styles.headerTextSmall}>{rowNum}</Text>
+                                    </View>
+                                    {multiplicationNumbers.map(colNum => {
+                                        const color = getColorForMultiplication(rowNum, colNum);
+                                        return (
+                                            <View
+                                                key={`${rowNum}-${colNum}`}
+                                                style={[styles.cellSmall, { backgroundColor: color }]}
+                                            />
+                                        );
+                                    })}
+                                </View>
+                            ))}
                         </View>
-                    ))}
-                </View>
-            ) : (
-                <View style={styles.grid}>
-                    <View style={styles.row}>
-                        <View style={styles.headerCell} />
-                        {additionRanges.map(range => (
-                            <View key={`h-${range.label}`} style={styles.headerCell}>
-                                <Text style={styles.headerText}>{range.label}</Text>
+                    ) : (
+                        <View style={styles.grid}>
+                            {/* Header Row */}
+                            <View style={styles.row}>
+                                <View style={styles.headerCellPlaceholder} />
+                                {additionRanges.map(range => (
+                                    <View key={`h-${range.label}`} style={styles.headerCell}>
+                                        <Text style={styles.headerText}>{range.label}</Text>
+                                    </View>
+                                ))}
                             </View>
-                        ))}
-                    </View>
 
-                    {additionRanges.map(rowRange => (
-                        <View key={`row-${rowRange.label}`} style={styles.row}>
-                            <View style={styles.headerCell}>
-                                <Text style={styles.headerText}>{rowRange.label}</Text>
-                            </View>
-                            {additionRanges.map(colRange => {
-                                const status = getStatusForAdditionRange(rowRange, colRange);
-                                return (
-                                    <View
-                                        key={`${rowRange.label}-${colRange.label}`}
-                                        style={[styles.cell, { backgroundColor: getColor(status) }]}
-                                    />
-                                );
-                            })}
+                            {/* Data Rows */}
+                            {additionRanges.map(rowRange => (
+                                <View key={`row-${rowRange.label}`} style={styles.row}>
+                                    <View style={styles.headerCell}>
+                                        <Text style={styles.headerText}>{rowRange.label}</Text>
+                                    </View>
+                                    {additionRanges.map(colRange => {
+                                        const color = getColorForAdditionRange(rowRange, colRange);
+                                        return (
+                                            <View
+                                                key={`${rowRange.label}-${colRange.label}`}
+                                                style={[styles.cell, { backgroundColor: color }]}
+                                            />
+                                        );
+                                    })}
+                                </View>
+                            ))}
                         </View>
-                    ))}
+                    )}
                 </View>
-            )}
+            </ScrollView>
 
+            {/* LEGEND */}
             <View style={styles.legend}>
-                <LegendItem label="Mastery" color={COLORS.neonGreen} />
-                <LegendItem label="Struggle" color={COLORS.neonRed} />
-                <LegendItem label="Unexplored" color="#1C1C1E" />
+                <LegendItem label="Mastered" color={COLORS.neonGreen} />
+                <LegendItem label="Learning" color={COLORS.orange} />
+                <LegendItem label="New" color={COLORS.neonRed} />
             </View>
         </CyberCard>
     );
@@ -151,21 +152,67 @@ const LegendItem = ({ label, color }: { label: string; color: string }) => (
     </View>
 );
 
+// CONSTANTES DE TAILLE POUR L'ALIGNEMENT PARFAIT
+// Cellule de multiplication : 18px width + 1px margin left + 1px margin right = 20px Total
+const MULT_CELL_SIZE = 18;
+const MULT_CELL_MARGIN = 1;
+const MULT_TOTAL_SIZE = MULT_CELL_SIZE + (MULT_CELL_MARGIN * 2);
+
+// Cellule d'addition : 38px width + 1px margin left + 1px margin right = 40px Total
+const ADD_CELL_SIZE = 38;
+const ADD_CELL_MARGIN = 1;
+const ADD_TOTAL_SIZE = ADD_CELL_SIZE + (ADD_CELL_MARGIN * 2);
+
 const styles = StyleSheet.create({
-    container: { marginBottom: 20, alignItems: 'center' },
+    container: { marginBottom: 20, alignItems: 'center', width: '100%' },
+    scrollContainer: { paddingBottom: 10 }, // Espace pour scroller
     tabContainer: { flexDirection: 'row', marginBottom: 12, gap: 8 },
-    tab: { paddingHorizontal: 20, paddingVertical: 6, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.05)' },
+    tab: { paddingHorizontal: 20, paddingVertical: 6, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.05)' },
     tabActive: { backgroundColor: COLORS.neonGreen },
     tabText: { fontSize: 16, fontWeight: 'bold', color: COLORS.textSecondary },
     tabTextActive: { color: COLORS.black },
+    
     grid: { flexDirection: 'column' },
     row: { flexDirection: 'row', alignItems: 'center' },
-    headerCell: { width: 35, height: 20, justifyContent: 'center', alignItems: 'center' },
-    headerText: { color: COLORS.textSecondary, fontSize: 8, fontWeight: 'bold' },
-    headerCellSmall: { width: 18, height: 18, justifyContent: 'center', alignItems: 'center' },
-    headerTextSmall: { color: COLORS.textSecondary, fontSize: 7, fontWeight: 'bold' },
-    cell: { width: 32, height: 18, margin: 1, borderRadius: 3 },
-    cellSmall: { width: 16, height: 16, margin: 0.5, borderRadius: 2 },
+
+    // --- STYLES MULTIPLICATION (Alignés sur MULT_TOTAL_SIZE = 20px) ---
+    headerCellSmall: { 
+        width: MULT_TOTAL_SIZE, 
+        height: 20, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    headerCellSmallPlaceholder: {
+        width: MULT_TOTAL_SIZE,
+        height: 20,
+    },
+    headerTextSmall: { color: COLORS.textSecondary, fontSize: 8, fontWeight: 'bold' },
+    cellSmall: { 
+        width: MULT_CELL_SIZE, 
+        height: MULT_CELL_SIZE, 
+        margin: MULT_CELL_MARGIN, 
+        borderRadius: 2 
+    },
+
+    // --- STYLES ADDITION (Alignés sur ADD_TOTAL_SIZE = 40px) ---
+    headerCell: { 
+        width: ADD_TOTAL_SIZE, 
+        height: 20, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    headerCellPlaceholder: {
+        width: ADD_TOTAL_SIZE,
+        height: 20,
+    },
+    headerText: { color: COLORS.textSecondary, fontSize: 9, fontWeight: 'bold' },
+    cell: { 
+        width: ADD_CELL_SIZE, 
+        height: 18, 
+        margin: ADD_CELL_MARGIN, 
+        borderRadius: 3 
+    },
+
     legend: { flexDirection: 'row', gap: 15, marginTop: 10 },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     legendDot: { width: 8, height: 8, borderRadius: 4 },

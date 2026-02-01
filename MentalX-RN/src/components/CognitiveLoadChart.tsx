@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SRSItem, SRSStatus } from '../types';
 import { CyberCard } from './CyberCard';
 import { COLORS, FONTS } from '../constants/theme';
+import { AlertTriangle } from 'lucide-react-native';
 
 interface CognitiveLoadChartProps {
     items: SRSItem[];
@@ -25,7 +26,7 @@ export const CognitiveLoadChart: React.FC<CognitiveLoadChartProps> = ({ items })
     return (
         <CyberCard style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.icon}>⚠️</Text>
+                <AlertTriangle size={18} color={COLORS.neonRed} style={{ marginRight: 10 }} />
                 <Text style={styles.title}>Cognitive Vulnerabilities</Text>
                 <View style={styles.spacer} />
                 <Text style={styles.count}>{isEmpty ? '--' : criticalCount}</Text>

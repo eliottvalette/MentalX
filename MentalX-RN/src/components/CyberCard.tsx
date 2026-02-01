@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/theme';
 
 interface CyberCardProps {
@@ -8,25 +9,29 @@ interface CyberCardProps {
 }
 
 export const CyberCard: React.FC<CyberCardProps> = ({ children, style }) => (
-    <View style={[styles.card, style]}>{children}</View>
+    <LinearGradient
+        colors={[COLORS.cardGradientStart, COLORS.cardGradientEnd]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.card, style]}
+    >
+        <View style={styles.innerHighlight} />
+        {children}
+    </LinearGradient>
 );
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: COLORS.cyberCard,
-        borderRadius: 16,
+        borderRadius: 8,
         padding: 16,
-        // BORDURE FINE pour l'effet "Sharp"
         borderWidth: 1,
         borderColor: COLORS.borderSubtle,
-        // OMBRE pour la profondeur
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 4,
-        },
-        shadowOpacity: 0.3,
-        shadowRadius: 4.65,
-        elevation: 8,
+        overflow: 'hidden',
     },
+    innerHighlight: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0,
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+    }
 });

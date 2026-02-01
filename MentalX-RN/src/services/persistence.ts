@@ -1,5 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GameResult, GameMode, Question } from '../types';
+import { GameResult, GameMode, Question, SRSItem } from '../types';
+import { updateSRSItem, calculateQuality, calculateMastery, getStatusFromMastery } from '../utils/srsAlgorithm';
+
+type SRSState = {
+    interval: number;
+    repetitions: number;
+    ef: number;
+    lastReview: number;
+};
 
 const RESULTS_KEY = 'gameResults';
 const MAX_RESULTS = 2000;
@@ -71,6 +79,64 @@ class PersistenceService {
             responseTime,
             timestamp: new Date(),
         };
+    }
+
+    async updateSRS(questionText: string, isCorrect: boolean, responseTime: number): Promise<void> {
+        const key = `srs_state_${questionText}`;
+        const stored = await AsyncStorage.getItem(key);
+
+        let state: SRSState = stored ? JSON.parse(stored) : {
+            interval: 0,
+            repetitions: 0,
+            ef: 2.5,
+            lastReview: Date.now()
+        };
+
+        const quality = calculateQuality(isCorrect, responseTime);
+        const { nextInterval, nextRepetitions, nextEF } = updateSRSItem(
+            state.interval,
+            state.repetitions,
+            state.ef,
+            quality
+        );
+
+        const newState: SRSState = {
+            interval: nextInterval,
+            repetitions: nextRepetitions,
+            ef: nextEF,
+            lastReview: Date.now()
+        };
+
+        await AsyncStorage.setItem(key, JSON.stringify(newState));
+    }
+
+    async getAllSRSItems(): Promise<SRSItem[]> {
+        try {
+            const keys = await AsyncStorage.getAllKeys();
+            const srsKeys = keys.filter(k => k.startsWith('srs_state_'));
+            const stores = await AsyncStorage.multiGet(srsKeys);
+
+            return stores.map(([key, value]) => {
+                if (!value) return null;
+                const state: SRSState = JSON.parse(value);
+                const operation = key.replace('srs_state_', '');
+                const mastery = calculateMastery(state.interval);
+                const status = getStatusFromMastery(mastery);
+
+                return {
+                    id: key,
+                    operation,
+                    avgTime: 0,
+                    errorRate: 0,
+                    mastery: mastery,
+                    lastSeen: new Date(state.lastReview),
+                    status
+                };
+            }).filter(Boolean) as SRSItem[];
+        } catch (error) {
+            console.error('Failed to load SRS items:', error);
+            return [];
+        }
     }
 }
 

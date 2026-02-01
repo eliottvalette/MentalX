@@ -19,6 +19,7 @@ export const useGameLogic = (mode: GameMode) => {
     const [lives, setLives] = useState(MAX_LIVES);
     const [isGameOver, setIsGameOver] = useState(false);
     const [successTrigger, setSuccessTrigger] = useState(0);
+    const [errorTrigger, setErrorTrigger] = useState(0);
 
     const questionStartTime = useRef<Date | null>(null);
     const globalTimer = useRef<NodeJS.Timeout | null>(null);
@@ -26,6 +27,9 @@ export const useGameLogic = (mode: GameMode) => {
 
     const nextQuestion = () => {
         let question: Question;
+        // La génération reste spécifique :
+        // Training = On cible tes faiblesses
+        // Sprint/Marathon = Aléatoire pour tester la vitesse globale
         if (mode === GameMode.TRAINING) {
             question = questionGenerator.generateWeighted();
         } else {
@@ -78,6 +82,7 @@ export const useGameLogic = (mode: GameMode) => {
 
     const handleMarathonTimeout = () => {
         if (questionTimer.current) clearInterval(questionTimer.current);
+        setErrorTrigger((prev) => prev + 1);
         hapticManager.playError();
         loseLife();
     };
@@ -119,6 +124,7 @@ export const useGameLogic = (mode: GameMode) => {
             nextQuestion();
         } else if (String(playerAnswer).length >= String(currentQuestion.answer).length) {
             hapticManager.playError();
+            setErrorTrigger((prev) => prev + 1);
 
             if (mode === GameMode.MARATHON) {
                 loseLife();
@@ -131,6 +137,8 @@ export const useGameLogic = (mode: GameMode) => {
     const logResult = async (playerAnswer: number, isCorrect: boolean) => {
         if (!currentQuestion || !questionStartTime.current) return;
         const responseTime = (new Date().getTime() - questionStartTime.current.getTime()) / 1000;
+        
+        // 1. Sauvegarde le log brut (Historique global)
         const result = persistenceService.createGameResult(
             mode,
             currentQuestion,
@@ -139,6 +147,14 @@ export const useGameLogic = (mode: GameMode) => {
             isCorrect
         );
         await persistenceService.saveResult(result);
+
+        // 2. Mise à jour Algo SRS (POUR TOUS LES MODES MAINTENANT)
+        // On a retiré le `if (mode === GameMode.TRAINING)`
+        await persistenceService.updateSRS(
+            currentQuestion.text,
+            isCorrect,
+            responseTime
+        );
     };
 
     const submitInput = (value: string) => {
@@ -173,6 +189,7 @@ export const useGameLogic = (mode: GameMode) => {
         lives,
         isGameOver,
         successTrigger,
+        errorTrigger,
         submitInput,
         deleteInput,
     };
