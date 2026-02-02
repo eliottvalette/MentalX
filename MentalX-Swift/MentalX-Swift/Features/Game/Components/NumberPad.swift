@@ -1,0 +1,79 @@
+import SwiftUI
+import UIKit // For Haptics
+
+struct NumberPad: View {
+    var onTap: (String) -> Void
+    var onDelete: () -> Void
+    
+    let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
+    
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 12) {
+            ForEach(1...9, id: \.self) { number in
+                NumberButton(label: "\(number)") {
+                    triggerHaptic()
+                    onTap("\(number)")
+                }
+            }
+            
+            // Bottom Row
+            Spacer() // Placeholder for left corner if needed
+            
+            NumberButton(label: "0") {
+                triggerHaptic()
+                onTap("0")
+            }
+            
+            Button(action: {
+                triggerHaptic()
+                onDelete()
+            }) {
+                Image(systemName: "delete.left.fill")
+                    .font(.title2)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .aspectRatio(1.2, contentMode: .fit)
+                    .foregroundStyle(Color.neonRed)
+                    .background(Color.white.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+        }
+        .padding()
+    }
+    
+    private func triggerHaptic() {
+        let impactMed = UIImpactFeedbackGenerator(style: .medium)
+        impactMed.impactOccurred()
+    }
+}
+
+struct NumberButton: View {
+    let label: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.cyberNumber)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .aspectRatio(1.2, contentMode: .fit)
+                .foregroundStyle(Color.white)
+                .background(Color.white.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
+        }
+    }
+}
+
+#Preview {
+    ZStack {
+        Color.black
+        NumberPad(onTap: { _ in }, onDelete: {})
+    }
+}
