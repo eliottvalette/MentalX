@@ -111,8 +111,8 @@ struct AdditionGrid: View {
 
     // User styling: Compact!
     // Reduced from 35 to 30. (Fits "96-99" with small font)
-    let cellWidth: CGFloat = 28
-    let cellHeight: CGFloat = 28
+    let cellWidth: CGFloat = 26
+    let cellHeight: CGFloat = 26
     let headerSize: CGFloat = 7
 
     // Logic to find average mastery for a range and return color
@@ -158,38 +158,36 @@ struct AdditionGrid: View {
     }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            VStack(spacing: 2) {
-                // Header Row
-                HStack(spacing: 2) {
-                    Color.clear.frame(width: cellWidth, height: 20)
-                    ForEach(ranges, id: \.self) { range in
-                        Text(range)
-                            .font(.system(size: headerSize, weight: .bold))
-                            .frame(width: cellWidth, height: 20)
-                            .foregroundStyle(Color.textSecondary)
-                    }
+        VStack(spacing: 2) {
+            // Header Row
+            HStack(spacing: 2) {
+                Color.clear.frame(width: cellWidth, height: 20)
+                ForEach(ranges, id: \.self) { range in
+                    Text(range)
+                        .font(.system(size: headerSize, weight: .bold))
+                        .frame(width: cellWidth, height: 20)
+                        .foregroundStyle(Color.textSecondary)
                 }
+            }
 
-                // Rows
-                ForEach(ranges, id: \.self) { row in
-                    HStack(spacing: 2) {
-                        Text(row)
-                            .font(.system(size: headerSize, weight: .bold))
-                            .frame(width: cellWidth, height: 20)
-                            .foregroundStyle(Color.textSecondary)
+            // Rows
+            ForEach(ranges, id: \.self) { row in
+                HStack(spacing: 2) {
+                    Text(row)
+                        .font(.system(size: headerSize, weight: .bold))
+                        .frame(width: cellWidth, height: 20)
+                        .foregroundStyle(Color.textSecondary)
 
-                        ForEach(ranges, id: \.self) { col in
-                            // getColorForRange already handles bidirectional check
-                            CellView(color: getColorForRange(row: row, col: col))
-                                .frame(width: cellWidth, height: cellHeight)
-                        }
+                    ForEach(ranges, id: \.self) { col in
+                        // getColorForRange already handles bidirectional check
+                        CellView(color: getColorForRange(row: row, col: col))
+                            .frame(width: cellWidth, height: cellHeight)
                     }
                 }
             }
-            .padding(.trailing)  // Keep trailing
-            .padding(.leading, 10)  // Reduced leading (was default ~16)
         }
+        .padding(.trailing)  // Keep trailing
+        .padding(.leading, 10)  // Reduced leading (was default ~16)
     }
 }
 
