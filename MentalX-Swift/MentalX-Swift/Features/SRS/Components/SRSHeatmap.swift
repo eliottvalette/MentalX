@@ -5,8 +5,13 @@ struct SRSHeatmap: View {
     @Query private var srsItems: [SRSItem]
     @State private var selectedTab: OperationType = .multiplication
 
-    private let multiplicationNumbers = [2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15]
-    private let additionRanges = ["1-9", "10-19", "20-29", "30-39", "40-49", "50-99"]
+    // RN: 1..15
+    private let multiplicationNumbers = Array(1...15)
+    // 5x5 Ranges (Full)
+    private let additionRanges = [
+        "1-10", "11-20", "21-30", "31-40", "41-50",
+        "51-60", "61-70", "71-80", "81-90", "91-99",
+    ]
 
     var body: some View {
         VStack(spacing: 16) {
@@ -104,10 +109,11 @@ struct AdditionGrid: View {
     let items: [SRSItem]
     let ranges: [String]
 
-    // RN stats: 38px width, 18px height. margin 1 -> Total width 40.
-    let cellWidth: CGFloat = 38
-    let cellHeight: CGFloat = 18
-    let headerSize: CGFloat = 9
+    // User styling: Compact!
+    // Reduced from 35 to 30. (Fits "96-99" with small font)
+    let cellWidth: CGFloat = 28
+    let cellHeight: CGFloat = 28
+    let headerSize: CGFloat = 7
 
     // Logic to find average mastery for a range and return color
     func getColorForRange(row: String, col: String) -> Color {
@@ -181,7 +187,8 @@ struct AdditionGrid: View {
                     }
                 }
             }
-            .padding(.horizontal)
+            .padding(.trailing)  // Keep trailing
+            .padding(.leading, 10)  // Reduced leading (was default ~16)
         }
     }
 }
