@@ -5,13 +5,8 @@ struct SRSHeatmap: View {
     @Query private var srsItems: [SRSItem]
     @State private var selectedTab: OperationType = .multiplication
 
-    // RN: 1..15
-    private let multiplicationNumbers = Array(1...15)
-    // RN Ranges
-    private let additionRanges = [
-        "1-10", "11-20", "21-30", "31-40", "41-50",
-        "51-60", "61-70", "71-80", "81-90", "91-99",
-    ]
+    private let multiplicationNumbers = [2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15]
+    private let additionRanges = ["1-9", "10-19", "20-29", "30-39", "40-49", "50-99"]
 
     var body: some View {
         VStack(spacing: 16) {
