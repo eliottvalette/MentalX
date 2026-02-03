@@ -6,7 +6,8 @@ struct SRSHeatmap: View {
     @State private var selectedTab: OperationType = .multiplication
 
     // RN: 1..15
-    private let multiplicationNumbers = Array(1...15)
+    // RN: 1..15, excluding 10
+    private let multiplicationNumbers = [2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15]
     // 5x5 Ranges (Full)
     private let additionRanges = [
         "1-10", "11-20", "21-30", "31-40", "41-50",
@@ -32,7 +33,7 @@ struct SRSHeatmap: View {
             if selectedTab == .multiplication {
                 MultiplicationGrid(items: srsItems, numbers: multiplicationNumbers)
             } else {
-                AdditionGrid(items: srsItems, ranges: additionRanges)
+                AdditionGrid(items: srsItems)
             }
         }
     }
@@ -107,87 +108,85 @@ struct MultiplicationGrid: View {
 
 struct AdditionGrid: View {
     let items: [SRSItem]
-    let ranges: [String]
+    // ranges unused now, we implicitly do 10 blocks of 10
 
-    // User styling: Compact!
-    // Reduced from 35 to 30. (Fits "96-99" with small font)
-    let cellWidth: CGFloat = 26
-    let cellHeight: CGFloat = 26
-    let headerSize: CGFloat = 7
+    // Grid Config
+    let blockSize: CGFloat = 31  // 10x10 pixels + margins (~3px per pixel)
+    let pixelSize: CGFloat = 2.4
+    let blockSpacing: CGFloat = 2
+    let pixelSpacing: CGFloat = 0.5
 
-    // Logic to find average mastery for a range and return color
-    func getColorForRange(row: String, col: String) -> Color {
-        let r1 = parseRange(row)
-        let r2 = parseRange(col)
-
-        // Optim: Pre-filtering or efficient map would be better but this works for MVVM
-        let relevantItems = items.filter { item in
-            item.type == "addition"
-                && ((item.op1 >= r1.0 && item.op1 <= r1.1 && item.op2 >= r2.0 && item.op2 <= r2.1)
-                    || (item.op2 >= r1.0 && item.op2 <= r1.1 && item.op1 >= r2.0
-                        && item.op1 <= r2.1))
-        }
-
-        if relevantItems.isEmpty {
-            return Color(hex: "#1C1C1E")  // Dark empty state
-        }
-
-        let avgMastery =
-            relevantItems.reduce(0.0) { sum, item in
-                // Mapping interval to mastery logic roughly
-                // RN code used item.mastery directly.
-                // We store interval. Let's approx:
-                // 0 -> 0, 21+ -> 1.0
-                let m = min(1.0, Double(item.interval) / 21.0)
-                return sum + m
-            } / Double(relevantItems.count)
-
-        // Use srsAlgorithm color logic or simple threshold
-        if avgMastery > 0.9 { return Color.neonGreen }
-        if avgMastery > 0.7 { return Color.neonGreen.opacity(0.7) }
-        if avgMastery > 0.4 { return Color.orange }
-        return Color.neonRed
-    }
-
-    func parseRange(_ range: String) -> (Int, Int) {
-        let parts = range.split(separator: "-")
-        if parts.count == 2, let min = Int(parts[0]), let max = Int(parts[1]) {
-            return (min, max)
-        }
-        return (0, 0)
+    // Cache map for efficient lookup
+    // Key: "op1:op2"
+    // Cache map for efficient lookup
+    // Key: "op1:op2" where op1 <= op2 (Normalized)
+    var itemMap: [String: SRSItem] {
+        Dictionary(
+            items.filter { $0.type == "addition" }.map { item in
+                let minOp = min(item.op1, item.op2)
+                let maxOp = max(item.op1, item.op2)
+                return ("\(minOp):\(maxOp)", item)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     var body: some View {
-        VStack(spacing: 2) {
-            // Header Row
-            HStack(spacing: 2) {
-                Color.clear.frame(width: cellWidth, height: 20)
-                ForEach(ranges, id: \.self) { range in
-                    Text(range)
-                        .font(.system(size: headerSize, weight: .bold))
-                        .frame(width: cellWidth, height: 20)
-                        .foregroundStyle(Color.textSecondary)
-                }
-            }
+        VStack(spacing: 4) {
+            // Legend / Info
+            Text("100x100 Grid (10,000 Operations)")
+                .font(.caption2)
+                .foregroundStyle(Color.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 10)
 
-            // Rows
-            ForEach(ranges, id: \.self) { row in
-                HStack(spacing: 2) {
-                    Text(row)
-                        .font(.system(size: headerSize, weight: .bold))
-                        .frame(width: cellWidth, height: 20)
-                        .foregroundStyle(Color.textSecondary)
+            Canvas { context, size in
+                // 10x10 Blocks
+                for blockRow in 0..<10 {  // 0..9 (representing 1-10, 11-20...)
+                    for blockCol in 0..<10 {
 
-                    ForEach(ranges, id: \.self) { col in
-                        // getColorForRange already handles bidirectional check
-                        CellView(color: getColorForRange(row: row, col: col))
-                            .frame(width: cellWidth, height: cellHeight)
+                        let blockX = CGFloat(blockCol) * (blockSize + blockSpacing)
+                        let blockY = CGFloat(blockRow) * (blockSize + blockSpacing)
+
+                        // Within each block, 10x10 pixels
+                        for row in 0..<10 {
+                            for col in 0..<10 {
+                                let pixelX = blockX + CGFloat(col) * (pixelSize + pixelSpacing)
+                                let pixelY = blockY + CGFloat(row) * (pixelSize + pixelSpacing)
+
+                                // Calculate actual numbers (1-indexed)
+                                // Block 0 -> 1..10.
+                                // Inside Block 0: row 0 -> 1.
+                                let op1 = (blockRow * 10) + row + 1
+                                let op2 = (blockCol * 10) + col + 1
+
+                                // Lookup
+                                // Commutativity check for coloring
+                                let minOp = min(op1, op2)
+                                let maxOp = max(op1, op2)
+                                let key = "\(minOp):\(maxOp)"
+
+                                var color: Color = Color(hex: "#1C1C1E")  // Default empty
+
+                                if let item = itemMap[key] {
+                                    // Use Manager color logic ideally, currently approximating based on interval as before
+                                    let srsColor = SRSManager.shared.getColor(for: item)
+                                    color = Color(hex: srsColor)
+                                }
+
+                                // Draw Pixel
+                                let rect = CGRect(
+                                    x: pixelX, y: pixelY, width: pixelSize, height: pixelSize)
+                                context.fill(
+                                    Path(roundedRect: rect, cornerRadius: 0.5), with: .color(color))
+                            }
+                        }
                     }
                 }
             }
+            .frame(width: (blockSize + blockSpacing) * 10, height: (blockSize + blockSpacing) * 10)
         }
-        .padding(.trailing)  // Keep trailing
-        .padding(.leading, 10)  // Reduced leading (was default ~16)
+        .padding(10)
     }
 }
 

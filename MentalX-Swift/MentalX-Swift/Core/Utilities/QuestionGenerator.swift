@@ -11,7 +11,8 @@ class QuestionGenerator {
         AdditionRange(id: "20-29", label: "20-29", min: 20, max: 29),
         AdditionRange(id: "30-39", label: "30-39", min: 30, max: 39),
         AdditionRange(id: "40-49", label: "40-49", min: 40, max: 49),
-        AdditionRange(id: "50-99", label: "50-99", min: 50, max: 99)
+        AdditionRange(id: "50-75", label: "50-75", min: 50, max: 75),
+        AdditionRange(id: "76-99", label: "76-99", min: 76, max: 99)
     ]
     
     func generate(type: OperationType) -> Question {

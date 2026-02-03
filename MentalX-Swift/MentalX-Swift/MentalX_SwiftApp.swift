@@ -14,6 +14,6 @@ struct MentalX_SwiftApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: SRSItem.self)
+        .modelContainer(for: [SRSItem.self, GameResult.self])
     }
 }

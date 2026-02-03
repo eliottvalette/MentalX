@@ -1,16 +1,19 @@
 import SwiftUI
-import UIKit // For Haptics
+import UIKit  // For Haptics
 
 struct NumberPad: View {
     var onTap: (String) -> Void
     var onDelete: () -> Void
-    
+
+    // Optimized for latency: Persistent generator
+    @State private var impactMed = UIImpactFeedbackGenerator(style: .medium)
+
     let columns = [
         GridItem(.flexible()),
         GridItem(.flexible()),
-        GridItem(.flexible())
+        GridItem(.flexible()),
     ]
-    
+
     var body: some View {
         LazyVGrid(columns: columns, spacing: 12) {
             ForEach(1...9, id: \.self) { number in
@@ -19,15 +22,15 @@ struct NumberPad: View {
                     onTap("\(number)")
                 }
             }
-            
+
             // Bottom Row
-            Spacer() // Placeholder for left corner if needed
-            
+            Spacer()  // Placeholder for left corner if needed
+
             NumberButton(label: "0") {
                 triggerHaptic()
                 onTap("0")
             }
-            
+
             Button(action: {
                 triggerHaptic()
                 onDelete()
@@ -42,18 +45,22 @@ struct NumberPad: View {
             }
         }
         .padding()
+        .onAppear {
+            impactMed.prepare()
+        }
     }
-    
+
     private func triggerHaptic() {
-        let impactMed = UIImpactFeedbackGenerator(style: .medium)
         impactMed.impactOccurred()
+        // Re-prepare for next tap (best practice for sequences)
+        impactMed.prepare()
     }
 }
 
 struct NumberButton: View {
     let label: String
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             Text(label)

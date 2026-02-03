@@ -1,7 +1,48 @@
 import Foundation
+import SwiftData
 
 class SRSManager {
     static let shared = SRSManager()
+
+    // Deduplication logic to clean corrupted DB
+    func deduplicate(in context: SwiftData.ModelContext) {
+        do {
+            // Fetch all items
+            // Ideally we'd use a more efficient query but for cleanup this is fine
+            let descriptor = FetchDescriptor<SRSItem>()
+            let items = try context.fetch(descriptor)
+
+            // Group by ID
+            let grouped = Dictionary(grouping: items, by: { $0.id })
+
+            var deletedCount = 0
+
+            for (id, duplicates) in grouped {
+                if duplicates.count > 1 {
+                    // Keep the one with highest progress (interval)
+                    let sorted = duplicates.sorted { $0.interval > $1.interval }
+                    let toKeep = sorted.first!
+                    let toDelete = sorted.dropFirst()
+
+                    for item in toDelete {
+                        context.delete(item)
+                        deletedCount += 1
+                    }
+                    print(
+                        "Deduplicated \(id): Kept interval \(toKeep.interval), removed \(toDelete.count) copies."
+                    )
+                }
+            }
+
+            if deletedCount > 0 {
+                try context.save()
+                print("SRSManager: Cleaned up \(deletedCount) duplicate items.")
+            }
+
+        } catch {
+            print("SRSManager Deduplication Failed: \(error)")
+        }
+    }
 
     // Quality: 0-5
     // 5 = Perfect response (fast)

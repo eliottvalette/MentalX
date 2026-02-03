@@ -125,6 +125,14 @@ class GameViewModel {
     func endGame() {
         timer?.invalidate()
         isGameOver = true
+
+        // Save Score
+        if let context = modelContext, mode == .sprint || mode == .marathon {
+            let result = GameResult(mode: mode.rawValue, score: score)
+            context.insert(result)
+            try? context.save()
+            print("Score saved: \(score) for \(mode.rawValue)")
+        }
     }
 
     func loseLife() {
