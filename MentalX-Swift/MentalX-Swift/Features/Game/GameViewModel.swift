@@ -16,6 +16,7 @@ final class GameViewModel {
     var timeRemaining: Double = 0
     var totalTime: Double = 0
     @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var trainingQueue: [Question] = []
 
     // Feedback Triggers
     var successTrigger: Int = 0
@@ -67,30 +68,19 @@ final class GameViewModel {
                 return
             }
 
-            let now = Date()
-
-            // 1. Fetch Due Items
-            // Note: Predicate construction in SwiftData can be finicky.
-            // We use a simple predicate comparing dueDate.
-            let dueDescriptor = FetchDescriptor<SRSItem>(
-                predicate: #Predicate { $0.dueDate <= now },
-                sortBy: [SortDescriptor(\.dueDate)]
-            )
-
             do {
-                let dueItems = try context.fetch(dueDescriptor)
-                for item in dueItems {
-                    if let dueQuestion = QuestionGenerator.shared.generateFromSRS(item: item) {
-                        currentQuestion = dueQuestion
-                        return
-                    }
-                    print("Skipping unsupported SRS item: \(item.id)")
+                if trainingQueue.isEmpty {
+                    try prepareTrainingQueue(in: context)
                 }
-                currentQuestion = makeRandomQuestion()
-
+                guard let question = trainingQueue.popLast() else {
+                    print("Training queue is empty after loading the curriculum.")
+                    currentQuestion = nil
+                    return
+                }
+                currentQuestion = question
             } catch {
-                print("SRS Fetch Error: \(error)")
-                currentQuestion = makeRandomQuestion()
+                print("Training queue load failed: \(error)")
+                currentQuestion = nil
             }
 
         } else {
@@ -269,9 +259,48 @@ final class GameViewModel {
         }
     }
 
+    private func prepareTrainingQueue(in context: ModelContext) throws {
+        let descriptor = FetchDescriptor<SRSItem>(sortBy: [SortDescriptor(\.dueDate)])
+        let storedItems = try context.fetch(descriptor)
+        let now = Date()
+
+        let dueQuestions = storedItems.compactMap { item -> Question? in
+            guard item.dueDate <= now else { return nil }
+            guard let question = QuestionGenerator.shared.generateFromSRS(item: item) else {
+                print("Skipping unsupported SRS item: \(item.id)")
+                return nil
+            }
+            return question
+        }
+
+        let knownQuestionIDs = Set(storedItems.map(\.id))
+        let unseenQuestions = OperationType.allCases
+            .flatMap { QuestionGenerator.shared.allQuestions(for: $0) }
+            .filter { !knownQuestionIDs.contains(questionIdentifier($0)) }
+            .shuffled()
+
+        var sessionQuestions = dueQuestions + unseenQuestions
+        if sessionQuestions.isEmpty {
+            print("No due or unseen questions remain; starting a general curriculum review.")
+            sessionQuestions = OperationType.allCases
+                .flatMap { QuestionGenerator.shared.allQuestions(for: $0) }
+                .shuffled()
+        }
+
+        trainingQueue = Array(sessionQuestions.reversed())
+    }
+
     private func makeRandomQuestion() -> Question {
         let types = OperationType.allCases
         let type = types[Int.random(in: types.indices)]
         return QuestionGenerator.shared.generate(type: type)
+    }
+
+    private func questionIdentifier(_ question: Question) -> String {
+        SRSItem.identifier(
+            type: question.type.rawValue,
+            op1: question.operands[0],
+            op2: question.operands[1]
+        )
     }
 }

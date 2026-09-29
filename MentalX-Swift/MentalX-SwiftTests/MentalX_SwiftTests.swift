@@ -5,6 +5,7 @@
 //  Created by Eliott VALETTE on 02/02/2026.
 //
 
+import Foundation
 import SwiftData
 import Testing
 @testable import MentalX_Swift
@@ -81,4 +82,28 @@ struct MentalX_SwiftTests {
         #expect(items.count == 1)
         #expect(items.first?.id == "multiplication:3:4")
     }
+
+    @Test("Training does not immediately repeat a correctly answered due question")
+    @MainActor
+    func trainingAdvancesAfterCorrectAnswer() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: SRSItem.self, configurations: configuration)
+        let context = ModelContext(container)
+        let dueItem = SRSItem(type: OperationType.addition.rawValue, op1: 10, op2: 3)
+        context.insert(dueItem)
+        try context.save()
+
+        let viewModel = GameViewModel(mode: .training, modelContext: context)
+        viewModel.nextQuestion()
+        let answeredQuestionID = try #require(viewModel.currentQuestion?.id)
+        #expect(viewModel.currentQuestion?.text == "10 + 3")
+
+        viewModel.submitInput("1")
+        viewModel.submitInput("3")
+
+        #expect(viewModel.currentQuestion?.id != answeredQuestionID)
+        #expect(dueItem.repetition == 1)
+        #expect(dueItem.dueDate > Date())
+    }
+
 }
