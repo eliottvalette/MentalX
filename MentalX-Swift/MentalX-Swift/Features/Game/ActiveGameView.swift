@@ -4,6 +4,7 @@ import SwiftData
 struct ActiveGameView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: GameViewModel
     
     init(mode: GameMode) {
@@ -21,7 +22,10 @@ struct ActiveGameView: View {
             VStack(spacing: 0) {
                 // Top Bar
                 HStack {
-                    Button(action: { dismiss() }) {
+                    Button(action: {
+                        viewModel.exitGame()
+                        dismiss()
+                    }) {
                         Text("Exit")
                             .font(.system(size: 14, weight: .semibold)) // FONTS.body
                             .foregroundStyle(Color.neonRed)
@@ -80,10 +84,13 @@ struct ActiveGameView: View {
                             .fill(Color.white.opacity(0.1))
                             .frame(height: 6)
                         
-                        Capsule()
-                            .fill(progress > 0.3 ? Color.neonGreen : Color.neonRed)
-                            .frame(width: UIScreen.main.bounds.width * CGFloat(max(0, progress)) - 32, height: 6) // -32 for padding
-                            .animation(.linear(duration: 0.1), value: progress)
+                        GeometryReader { geometry in
+                            Capsule()
+                                .fill(progress > 0.3 ? Color.neonGreen : Color.neonRed)
+                                .frame(width: geometry.size.width * CGFloat(max(0, progress)), height: 6)
+                                .animation(.linear(duration: 0.1), value: progress)
+                        }
+                        .frame(height: 6)
                     }
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
@@ -92,15 +99,25 @@ struct ActiveGameView: View {
                 // Keyboard
                 NumberPad(
                     onTap: { num in viewModel.submitInput(num) },
-                    onDelete: { viewModel.deleteInput() }
+                    onDelete: { viewModel.deleteInput() },
+                    onToggleSign: { viewModel.toggleInputSign() }
                 )
                 .padding(.bottom, 30) // Safety padding
             }
         }
         .navigationBarHidden(true)
         .onAppear {
-            viewModel.modelContext = modelContext
-            viewModel.startTimer()
+            viewModel.startGame(modelContext: modelContext)
+        }
+        .onDisappear {
+            viewModel.stopTimer()
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active {
+                viewModel.startTimer()
+            } else {
+                viewModel.stopTimer()
+            }
         }
         .onChange(of: viewModel.isGameOver) {
             if viewModel.isGameOver {

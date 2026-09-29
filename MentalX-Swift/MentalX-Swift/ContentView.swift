@@ -21,5 +21,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: SRSItem.self, inMemory: true)
+        .modelContainer(for: [SRSItem.self, GameResult.self], inMemory: true)
 }

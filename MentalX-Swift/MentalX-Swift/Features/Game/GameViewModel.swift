@@ -1,8 +1,9 @@
 import SwiftData
 import SwiftUI
 
+@MainActor
 @Observable
-class GameViewModel {
+final class GameViewModel {
     // Mode & State
     var mode: GameMode
     var currentQuestion: Question?
@@ -14,7 +15,7 @@ class GameViewModel {
     // Timer
     var timeRemaining: Double = 0
     var totalTime: Double = 0
-    var timer: Timer?
+    @ObservationIgnored private var timer: Timer?
 
     // Feedback Triggers
     var successTrigger: Int = 0
@@ -26,10 +27,19 @@ class GameViewModel {
     init(mode: GameMode, modelContext: ModelContext?) {
         self.mode = mode
         self.modelContext = modelContext
-        setupGame()
     }
 
-    func setupGame() {
+    deinit {
+        timer?.invalidate()
+    }
+
+    func startGame(modelContext: ModelContext) {
+        guard currentQuestion == nil, !isGameOver else {
+            startTimer()
+            return
+        }
+
+        self.modelContext = modelContext
         score = 0
         lives = 3
         isGameOver = false
@@ -53,9 +63,7 @@ class GameViewModel {
     func nextQuestion() {
         if mode == .training {
             guard let context = modelContext else {
-                // Fallback if context missing
-                let type: OperationType = Bool.random() ? .addition : .multiplication
-                currentQuestion = QuestionGenerator.shared.generate(type: type)
+                print("GameViewModel: Training requires a model context.")
                 return
             }
 
@@ -71,23 +79,22 @@ class GameViewModel {
 
             do {
                 let dueItems = try context.fetch(dueDescriptor)
-                if let firstDue = dueItems.first {
-                    currentQuestion = QuestionGenerator.shared.generateFromSRS(item: firstDue)
-                    return
+                for item in dueItems {
+                    if let dueQuestion = QuestionGenerator.shared.generateFromSRS(item: item) {
+                        currentQuestion = dueQuestion
+                        return
+                    }
+                    print("Skipping unsupported SRS item: \(item.id)")
                 }
-                let type: OperationType = Bool.random() ? .addition : .multiplication
-                currentQuestion = QuestionGenerator.shared.generate(type: type)
+                currentQuestion = makeRandomQuestion()
 
             } catch {
                 print("SRS Fetch Error: \(error)")
-                let type: OperationType = Bool.random() ? .addition : .multiplication
-                currentQuestion = QuestionGenerator.shared.generate(type: type)
+                currentQuestion = makeRandomQuestion()
             }
 
         } else {
-            // Random mix for other modes
-            let type: OperationType = Bool.random() ? .addition : .multiplication
-            currentQuestion = QuestionGenerator.shared.generate(type: type)
+            currentQuestion = makeRandomQuestion()
         }
 
         if mode == .marathon {
@@ -97,10 +104,24 @@ class GameViewModel {
 
     func startTimer() {
         timer?.invalidate()
+        timer = nil
+
+        guard mode != .training, !isGameOver else { return }
+
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            self.tick()
+            Task { @MainActor [weak self] in
+                self?.tick()
+            }
         }
+    }
+
+    func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    func exitGame() {
+        stopTimer()
     }
 
     func tick() {
@@ -117,30 +138,40 @@ class GameViewModel {
         if mode == .sprint {
             endGame()
         } else if mode == .marathon {
-            loseLife()
-            nextQuestion()  // Skip timeout question
+            if loseLife() {
+                nextQuestion()
+            }
         }
     }
 
     func endGame() {
-        timer?.invalidate()
+        guard !isGameOver else { return }
+
+        stopTimer()
         isGameOver = true
 
         // Save Score
         if let context = modelContext, mode == .sprint || mode == .marathon {
             let result = GameResult(mode: mode.rawValue, score: score)
             context.insert(result)
-            try? context.save()
-            print("Score saved: \(score) for \(mode.rawValue)")
+            do {
+                try context.save()
+                print("Score saved: \(score) for \(mode.rawValue)")
+            } catch {
+                print("Game result save failed: \(error)")
+            }
         }
     }
 
-    func loseLife() {
+    @discardableResult
+    func loseLife() -> Bool {
         lives -= 1
         errorTrigger += 1
         if lives <= 0 {
             endGame()
+            return false
         }
+        return true
     }
 
     // Input Handling
@@ -157,6 +188,15 @@ class GameViewModel {
         }
     }
 
+    func toggleInputSign() {
+        if input.hasPrefix("-") {
+            input.removeFirst()
+        } else {
+            input = "-" + input
+        }
+        checkAnswer()
+    }
+
     func checkAnswer() {
         guard let question = currentQuestion, Int(input) != nil else { return }
 
@@ -168,39 +208,38 @@ class GameViewModel {
             successTrigger += 1
             input = ""
 
-            // SRS Update if Training
-            if mode == .training {
-                updateSRS(correct: true)
-            }
+            updateSRS(correct: true)
 
             nextQuestion()
         } else if input.count >= answerStr.count {
             // Wrong and full length
             if mode == .marathon {
-                loseLife()
+                updateSRS(correct: false)
                 input = ""
+                if loseLife() {
+                    nextQuestion()
+                }
             } else {
                 errorTrigger += 1
                 input = ""
-
-                // SRS Update if Training (Incorrect)
-                if mode == .training {
-                    updateSRS(correct: false)
-                }
+                updateSRS(correct: false)
             }
         }
     }
 
     func updateSRS(correct: Bool) {
-        guard let context = modelContext, let question = currentQuestion else { return }
+        guard let context = modelContext else {
+            print("SRS update failed: model context is unavailable.")
+            return
+        }
+        guard let question = currentQuestion else {
+            print("SRS update failed: current question is unavailable.")
+            return
+        }
         let typeStr = question.type.rawValue
         let op1 = question.operands[0]
         let op2 = question.operands[1]
-        // Commutativity: Normalize ID lookup
-        // We use the same logic as SRSItem init
-        let minOp = min(op1, op2)
-        let maxOp = max(op1, op2)
-        let id = "\(typeStr):\(minOp):\(maxOp)"
+        let id = SRSItem.identifier(type: typeStr, op1: op1, op2: op2)
 
         // Fetch existing
         let fetchDescriptor = FetchDescriptor<SRSItem>(predicate: #Predicate { $0.id == id })
@@ -228,5 +267,11 @@ class GameViewModel {
         } catch {
             print("SRS Update Failed: \(error)")
         }
+    }
+
+    private func makeRandomQuestion() -> Question {
+        let types = OperationType.allCases
+        let type = types[Int.random(in: types.indices)]
+        return QuestionGenerator.shared.generate(type: type)
     }
 }

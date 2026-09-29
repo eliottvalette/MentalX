@@ -4,6 +4,7 @@ import UIKit  // For Haptics
 struct NumberPad: View {
     var onTap: (String) -> Void
     var onDelete: () -> Void
+    var onToggleSign: () -> Void
 
     // Optimized for latency: Persistent generator
     @State private var impactMed = UIImpactFeedbackGenerator(style: .medium)
@@ -24,7 +25,10 @@ struct NumberPad: View {
             }
 
             // Bottom Row
-            Spacer()  // Placeholder for left corner if needed
+            NumberButton(label: "±") {
+                triggerHaptic()
+                onToggleSign()
+            }
 
             NumberButton(label: "0") {
                 triggerHaptic()
@@ -81,6 +85,6 @@ struct NumberButton: View {
 #Preview {
     ZStack {
         Color.black
-        NumberPad(onTap: { _ in }, onDelete: {})
+        NumberPad(onTap: { _ in }, onDelete: {}, onToggleSign: {})
     }
 }

@@ -10,11 +10,13 @@ enum GameMode: String, CaseIterable, Identifiable {
 
 enum OperationType: String, CaseIterable, Codable {
     case addition = "addition"
+    case subtraction = "subtraction"
     case multiplication = "multiplication"
     
     var symbol: String {
         switch self {
         case .addition: return "+"
+        case .subtraction: return "−"
         case .multiplication: return "×"
         }
     }
@@ -26,11 +28,4 @@ struct Question: Identifiable, Equatable {
     let answer: Int
     let operands: [Int]
     let type: OperationType
-}
-
-struct AdditionRange: Identifiable {
-    let id: String
-    let label: String
-    let min: Int
-    let max: Int
 }

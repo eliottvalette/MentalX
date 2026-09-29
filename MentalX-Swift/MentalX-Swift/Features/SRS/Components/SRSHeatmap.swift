@@ -5,24 +5,20 @@ struct SRSHeatmap: View {
     @Query private var srsItems: [SRSItem]
     @State private var selectedTab: OperationType = .multiplication
 
-    // RN: 1..15
-    // RN: 1..15, excluding 10
-    private let multiplicationNumbers = [2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15]
-    // 5x5 Ranges (Full)
-    private let additionRanges = [
-        "1-10", "11-20", "21-30", "31-40", "41-50",
-        "51-60", "61-70", "71-80", "81-90", "91-99",
-    ]
+    private let multiplicationNumbers = Array(QuestionGenerator.multiplicationOperands)
 
     var body: some View {
         VStack(spacing: 16) {
             // Segmented Control (Custom)
             HStack {
-                TabButton(title: "× Multiplication", isSelected: selectedTab == .multiplication) {
+                TabButton(title: "×", isSelected: selectedTab == .multiplication) {
                     withAnimation { selectedTab = .multiplication }
                 }
-                TabButton(title: "+ Addition", isSelected: selectedTab == .addition) {
+                TabButton(title: "+", isSelected: selectedTab == .addition) {
                     withAnimation { selectedTab = .addition }
+                }
+                TabButton(title: "−", isSelected: selectedTab == .subtraction) {
+                    withAnimation { selectedTab = .subtraction }
                 }
             }
             .padding(4)
@@ -30,10 +26,11 @@ struct SRSHeatmap: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
             // Heatmap Content
-            if selectedTab == .multiplication {
+            switch selectedTab {
+            case .multiplication:
                 MultiplicationGrid(items: srsItems, numbers: multiplicationNumbers)
-            } else {
-                AdditionGrid(items: srsItems)
+            case .addition, .subtraction:
+                ArithmeticGrid(items: srsItems, operation: selectedTab)
             }
         }
     }
@@ -93,10 +90,12 @@ struct MultiplicationGrid: View {
                         .foregroundStyle(Color.textSecondary)
 
                     ForEach(numbers, id: \.self) { col in
-                        // Commutativity: Check normalized ID
-                        let minOp = min(row, col)
-                        let maxOp = max(row, col)
-                        let item = items.first { $0.id == "multiplication:\(minOp):\(maxOp)" }
+                        let id = SRSItem.identifier(
+                            type: OperationType.multiplication.rawValue,
+                            op1: row,
+                            op2: col
+                        )
+                        let item = items.first { $0.id == id }
                         CellView(color: Color(hex: SRSManager.shared.getColor(for: item)))
                             .frame(width: cellSize, height: cellSize)
                     }
@@ -106,26 +105,18 @@ struct MultiplicationGrid: View {
     }
 }
 
-struct AdditionGrid: View {
+struct ArithmeticGrid: View {
     let items: [SRSItem]
-    // ranges unused now, we implicitly do 10 blocks of 10
+    let operation: OperationType
 
-    // Grid Config
-    let blockSize: CGFloat = 31  // 10x10 pixels + margins (~3px per pixel)
-    let pixelSize: CGFloat = 2.4
-    let blockSpacing: CGFloat = 2
-    let pixelSpacing: CGFloat = 0.5
+    private let cellWidth: CGFloat = 18
+    private let cellHeight: CGFloat = 2.5
+    private let cellSpacing: CGFloat = 1
 
-    // Cache map for efficient lookup
-    // Key: "op1:op2"
-    // Cache map for efficient lookup
-    // Key: "op1:op2" where op1 <= op2 (Normalized)
-    var itemMap: [String: SRSItem] {
+    private var itemMap: [String: SRSItem] {
         Dictionary(
-            items.filter { $0.type == "addition" }.map { item in
-                let minOp = min(item.op1, item.op2)
-                let maxOp = max(item.op1, item.op2)
-                return ("\(minOp):\(maxOp)", item)
+            items.filter { $0.type == operation.rawValue }.map { item in
+                (item.id, item)
             },
             uniquingKeysWith: { first, _ in first }
         )
@@ -133,60 +124,37 @@ struct AdditionGrid: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            // Legend / Info
-            Text("100x100 Grid (10,000 Operations)")
+            Text("1…60 \(operation.symbol) 1…15")
                 .font(.caption2)
                 .foregroundStyle(Color.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 10)
 
             Canvas { context, size in
-                // 10x10 Blocks
-                for blockRow in 0..<10 {  // 0..9 (representing 1-10, 11-20...)
-                    for blockCol in 0..<10 {
-
-                        let blockX = CGFloat(blockCol) * (blockSize + blockSpacing)
-                        let blockY = CGFloat(blockRow) * (blockSize + blockSpacing)
-
-                        // Within each block, 10x10 pixels
-                        for row in 0..<10 {
-                            for col in 0..<10 {
-                                let pixelX = blockX + CGFloat(col) * (pixelSize + pixelSpacing)
-                                let pixelY = blockY + CGFloat(row) * (pixelSize + pixelSpacing)
-
-                                // Calculate actual numbers (1-indexed)
-                                // Block 0 -> 1..10.
-                                // Inside Block 0: row 0 -> 1.
-                                let op1 = (blockRow * 10) + row + 1
-                                let op2 = (blockCol * 10) + col + 1
-
-                                // Lookup
-                                // Commutativity check for coloring
-                                let minOp = min(op1, op2)
-                                let maxOp = max(op1, op2)
-                                let key = "\(minOp):\(maxOp)"
-
-                                var color: Color = Color(hex: "#1C1C1E")  // Default empty
-
-                                if let item = itemMap[key] {
-                                    // Use Manager color logic ideally, currently approximating based on interval as before
-                                    let srsColor = SRSManager.shared.getColor(for: item)
-                                    color = Color(hex: srsColor)
-                                }
-
-                                // Draw Pixel
-                                let rect = CGRect(
-                                    x: pixelX, y: pixelY, width: pixelSize, height: pixelSize)
-                                context.fill(
-                                    Path(roundedRect: rect, cornerRadius: 0.5), with: .color(color))
-                            }
-                        }
+                for left in QuestionGenerator.arithmeticLeftOperands {
+                    for right in QuestionGenerator.arithmeticRightOperands {
+                        let id = SRSItem.identifier(
+                            type: operation.rawValue,
+                            op1: left,
+                            op2: right
+                        )
+                        let color = Color(
+                            hex: SRSManager.shared.getColor(for: itemMap[id])
+                        )
+                        let rect = CGRect(
+                            x: CGFloat(right - 1) * (cellWidth + cellSpacing),
+                            y: CGFloat(left - 1) * (cellHeight + cellSpacing),
+                            width: cellWidth,
+                            height: cellHeight
+                        )
+                        context.fill(Path(roundedRect: rect, cornerRadius: 0.5), with: .color(color))
                     }
                 }
             }
-            .frame(width: (blockSize + blockSpacing) * 10, height: (blockSize + blockSpacing) * 10)
+            .frame(
+                width: (cellWidth + cellSpacing) * 15,
+                height: (cellHeight + cellSpacing) * 60
+            )
         }
-        .padding(10)
     }
 }
 

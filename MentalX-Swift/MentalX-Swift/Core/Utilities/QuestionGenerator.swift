@@ -1,65 +1,90 @@
 import Foundation
 
-class QuestionGenerator {
+final class QuestionGenerator {
     static let shared = QuestionGenerator()
-    
-    private let multiplicationNumbers = [2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15]
-    
-    private let additionRanges = [
-        AdditionRange(id: "1-9", label: "1-9", min: 1, max: 9),
-        AdditionRange(id: "10-19", label: "10-19", min: 10, max: 19),
-        AdditionRange(id: "20-29", label: "20-29", min: 20, max: 29),
-        AdditionRange(id: "30-39", label: "30-39", min: 30, max: 39),
-        AdditionRange(id: "40-49", label: "40-49", min: 40, max: 49),
-        AdditionRange(id: "50-75", label: "50-75", min: 50, max: 75),
-        AdditionRange(id: "76-99", label: "76-99", min: 76, max: 99)
-    ]
-    
+
+    static let multiplicationOperands = 3...12
+    static let arithmeticLeftOperands = 1...60
+    static let arithmeticRightOperands = 1...15
+
     func generate(type: OperationType) -> Question {
         switch type {
         case .addition:
             return generateAddition()
+        case .subtraction:
+            return generateSubtraction()
         case .multiplication:
             return generateMultiplication()
         }
     }
-    
+
+    func allQuestions(for type: OperationType) -> [Question] {
+        switch type {
+        case .multiplication:
+            return Self.multiplicationOperands.flatMap { left in
+                Self.multiplicationOperands.map { right in
+                    makeQuestion(left: left, right: right, type: type)
+                }
+            }
+        case .addition, .subtraction:
+            return Self.arithmeticLeftOperands.flatMap { left in
+                Self.arithmeticRightOperands.map { right in
+                    makeQuestion(left: left, right: right, type: type)
+                }
+            }
+        }
+    }
+
+    func generateFromSRS(item: SRSItem) -> Question? {
+        guard let type = OperationType(rawValue: item.type), supports(type: type, left: item.op1, right: item.op2) else {
+            return nil
+        }
+
+        return makeQuestion(left: item.op1, right: item.op2, type: type)
+    }
+
     private func generateMultiplication() -> Question {
-        let n1 = multiplicationNumbers.randomElement()!
-        let n2 = multiplicationNumbers.randomElement()!
-        return Question(
-            text: "\(n1) × \(n2)",
-            answer: n1 * n2,
-            operands: [n1, n2],
-            type: .multiplication
-        )
+        let left = Int.random(in: Self.multiplicationOperands)
+        let right = Int.random(in: Self.multiplicationOperands)
+        return makeQuestion(left: left, right: right, type: .multiplication)
     }
-    
+
     private func generateAddition() -> Question {
-        let r1 = additionRanges.randomElement()!
-        let r2 = additionRanges.randomElement()!
-        
-        let n1 = Int.random(in: r1.min...r1.max)
-        let n2 = Int.random(in: r2.min...r2.max)
-        
-        return Question(
-            text: "\(n1) + \(n2)",
-            answer: n1 + n2,
-            operands: [n1, n2],
-            type: .addition
-        )
+        let left = Int.random(in: Self.arithmeticLeftOperands)
+        let right = Int.random(in: Self.arithmeticRightOperands)
+        return makeQuestion(left: left, right: right, type: .addition)
     }
-    
-    // Generates a specific question from SRS item data
-    func generateFromSRS(item: SRSItem) -> Question {
-        let type = item.type == "addition" ? OperationType.addition : .multiplication
-        let symbol = type.symbol
-        let answer = type == .addition ? item.op1 + item.op2 : item.op1 * item.op2
-        
+
+    private func generateSubtraction() -> Question {
+        let left = Int.random(in: Self.arithmeticLeftOperands)
+        let right = Int.random(in: Self.arithmeticRightOperands)
+        return makeQuestion(left: left, right: right, type: .subtraction)
+    }
+
+    private func supports(type: OperationType, left: Int, right: Int) -> Bool {
+        switch type {
+        case .multiplication:
+            return Self.multiplicationOperands.contains(left) && Self.multiplicationOperands.contains(right)
+        case .addition, .subtraction:
+            return Self.arithmeticLeftOperands.contains(left) && Self.arithmeticRightOperands.contains(right)
+        }
+    }
+
+    private func makeQuestion(left: Int, right: Int, type: OperationType) -> Question {
+        let answer: Int
+        switch type {
+        case .addition:
+            answer = left + right
+        case .subtraction:
+            answer = left - right
+        case .multiplication:
+            answer = left * right
+        }
+
         return Question(
-            text: "\(item.op1) \(symbol) \(item.op2)",
+            text: "\(left) \(type.symbol) \(right)",
             answer: answer,
-            operands: [item.op1, item.op2],
+            operands: [left, right],
             type: type
         )
     }

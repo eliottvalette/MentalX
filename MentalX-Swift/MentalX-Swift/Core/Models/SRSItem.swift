@@ -4,7 +4,7 @@ import SwiftData
 @Model
 final class SRSItem {
     @Attribute(.unique) var id: String  // Format: "type:op1:op2" (e.g., "mult:7:8")
-    var type: String  // "addition" or "multiplication"
+    var type: String
     var op1: Int
     var op2: Int
 
@@ -18,15 +18,20 @@ final class SRSItem {
         self.type = type
         self.op1 = op1
         self.op2 = op2
-        // Commutativity: Normalize ID so 3x4 and 4x3 share the same data
-        let minOp = min(op1, op2)
-        let maxOp = max(op1, op2)
-        self.id = "\(type):\(minOp):\(maxOp)"
+        self.id = Self.identifier(type: type, op1: op1, op2: op2)
 
         // Initial SM-2 values
         self.interval = 0
         self.repetition = 0
         self.easeFactor = 2.5
         self.dueDate = Date()
+    }
+
+    static func identifier(type: String, op1: Int, op2: Int) -> String {
+        if type == OperationType.addition.rawValue || type == OperationType.multiplication.rawValue {
+            return "\(type):\(min(op1, op2)):\(max(op1, op2))"
+        }
+
+        return "\(type):\(op1):\(op2)"
     }
 }

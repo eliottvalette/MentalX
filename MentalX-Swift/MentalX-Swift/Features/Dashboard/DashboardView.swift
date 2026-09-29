@@ -3,11 +3,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @Query private var srsItems: [SRSItem]
-
-    // Placeholder stats fetching until we wire up Persistence Service fully or compute from Items
-    // For now we compute simple stats from items for display if possible, or placeholders.
-    // RN used `persistenceService.getHighScore`. We need to fetch scores.
-    // Assuming we can add Score fetching later, for now we match UI structure.
+    @Query private var gameResults: [GameResult]
 
     var body: some View {
         NavigationStack {
@@ -44,7 +40,7 @@ struct DashboardView: View {
                                 mode: .sprint,
                                 title: "Sprint",
                                 subtitle: "60s Time Attack",
-                                stat: "0 pts",  // Placeholder, needs logic
+                                stat: highScore(for: .sprint),
                                 icon: "bolt.fill",  // Zap equivalent
                                 color: .textPrimary
                             )
@@ -53,7 +49,7 @@ struct DashboardView: View {
                                 mode: .marathon,
                                 title: "Marathon",
                                 subtitle: "3 Lives • 10s Limit",
-                                stat: "0 pts",
+                                stat: highScore(for: .marathon),
                                 icon: "flame.fill",
                                 color: .textPrimary
                             )
@@ -74,6 +70,14 @@ struct DashboardView: View {
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private func highScore(for mode: GameMode) -> String {
+        let score = gameResults
+            .filter { $0.mode == mode.rawValue }
+            .map(\.score)
+            .max() ?? 0
+        return "\(score) pts"
     }
 }
 
@@ -139,5 +143,5 @@ struct GameModeButton: View {
 
 #Preview {
     DashboardView()
-        .modelContainer(for: SRSItem.self, inMemory: true)
+        .modelContainer(for: [SRSItem.self, GameResult.self], inMemory: true)
 }
