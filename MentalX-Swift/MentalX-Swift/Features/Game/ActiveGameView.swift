@@ -7,8 +7,14 @@ struct ActiveGameView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: GameViewModel
     
-    init(mode: GameMode) {
-        _viewModel = State(initialValue: GameViewModel(mode: mode, modelContext: nil))
+    init(mode: GameMode, trainingOperation: OperationType? = nil) {
+        _viewModel = State(
+            initialValue: GameViewModel(
+                mode: mode,
+                modelContext: nil,
+                trainingOperation: trainingOperation
+            )
+        )
     }
     
     var body: some View {

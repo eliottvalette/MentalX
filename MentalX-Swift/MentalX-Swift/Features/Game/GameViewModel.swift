@@ -11,6 +11,7 @@ final class GameViewModel {
     var score: Int = 0
     var lives: Int = 3
     var isGameOver: Bool = false
+    let trainingOperation: OperationType?
 
     // Timer
     var timeRemaining: Double = 0
@@ -25,9 +26,14 @@ final class GameViewModel {
     // SRS Context
     var modelContext: ModelContext?
 
-    init(mode: GameMode, modelContext: ModelContext?) {
+    init(
+        mode: GameMode,
+        modelContext: ModelContext?,
+        trainingOperation: OperationType? = nil
+    ) {
         self.mode = mode
         self.modelContext = modelContext
+        self.trainingOperation = trainingOperation
     }
 
     deinit {
@@ -260,11 +266,16 @@ final class GameViewModel {
     }
 
     private func prepareTrainingQueue(in context: ModelContext) throws {
+        guard let trainingOperation else {
+            throw TrainingQueueError.missingOperation
+        }
+
         let descriptor = FetchDescriptor<SRSItem>(sortBy: [SortDescriptor(\.dueDate)])
         let storedItems = try context.fetch(descriptor)
         let now = Date()
 
         let dueQuestions = storedItems.compactMap { item -> Question? in
+            guard item.type == trainingOperation.rawValue else { return nil }
             guard item.dueDate <= now else { return nil }
             guard let question = QuestionGenerator.shared.generateFromSRS(item: item) else {
                 print("Skipping unsupported SRS item: \(item.id)")
@@ -274,16 +285,16 @@ final class GameViewModel {
         }
 
         let knownQuestionIDs = Set(storedItems.map(\.id))
-        let unseenQuestions = OperationType.allCases
-            .flatMap { QuestionGenerator.shared.allQuestions(for: $0) }
+        let unseenQuestions = QuestionGenerator.shared
+            .allQuestions(for: trainingOperation)
             .filter { !knownQuestionIDs.contains(questionIdentifier($0)) }
             .shuffled()
 
         var sessionQuestions = dueQuestions + unseenQuestions
         if sessionQuestions.isEmpty {
             print("No due or unseen questions remain; starting a general curriculum review.")
-            sessionQuestions = OperationType.allCases
-                .flatMap { QuestionGenerator.shared.allQuestions(for: $0) }
+            sessionQuestions = QuestionGenerator.shared
+                .allQuestions(for: trainingOperation)
                 .shuffled()
         }
 
@@ -302,5 +313,16 @@ final class GameViewModel {
             op1: question.operands[0],
             op2: question.operands[1]
         )
+    }
+}
+
+private enum TrainingQueueError: LocalizedError {
+    case missingOperation
+
+    var errorDescription: String? {
+        switch self {
+        case .missingOperation:
+            return "Training requires an explicitly selected operation."
+        }
     }
 }

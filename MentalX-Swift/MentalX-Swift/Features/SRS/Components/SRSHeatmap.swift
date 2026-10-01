@@ -3,7 +3,7 @@ import SwiftUI
 
 struct SRSHeatmap: View {
     @Query private var srsItems: [SRSItem]
-    @State private var selectedTab: OperationType = .multiplication
+    @Binding var selectedOperation: OperationType
 
     private let multiplicationNumbers = Array(QuestionGenerator.multiplicationOperands)
 
@@ -11,14 +11,14 @@ struct SRSHeatmap: View {
         VStack(spacing: 16) {
             // Segmented Control (Custom)
             HStack {
-                TabButton(title: "×", isSelected: selectedTab == .multiplication) {
-                    withAnimation { selectedTab = .multiplication }
+                TabButton(title: "×", isSelected: selectedOperation == .multiplication) {
+                    withAnimation { selectedOperation = .multiplication }
                 }
-                TabButton(title: "+", isSelected: selectedTab == .addition) {
-                    withAnimation { selectedTab = .addition }
+                TabButton(title: "+", isSelected: selectedOperation == .addition) {
+                    withAnimation { selectedOperation = .addition }
                 }
-                TabButton(title: "−", isSelected: selectedTab == .subtraction) {
-                    withAnimation { selectedTab = .subtraction }
+                TabButton(title: "−", isSelected: selectedOperation == .subtraction) {
+                    withAnimation { selectedOperation = .subtraction }
                 }
             }
             .padding(4)
@@ -26,11 +26,11 @@ struct SRSHeatmap: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
             // Heatmap Content
-            switch selectedTab {
+            switch selectedOperation {
             case .multiplication:
                 MultiplicationGrid(items: srsItems, numbers: multiplicationNumbers)
             case .addition, .subtraction:
-                ArithmeticGrid(items: srsItems, operation: selectedTab)
+                ArithmeticGrid(items: srsItems, operation: selectedOperation)
             }
         }
     }

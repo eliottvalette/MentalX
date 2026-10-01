@@ -4,6 +4,7 @@ import SwiftUI
 struct DashboardView: View {
     @Query private var srsItems: [SRSItem]
     @Query private var gameResults: [GameResult]
+    @State private var selectedOperation: OperationType = .multiplication
 
     var body: some View {
         NavigationStack {
@@ -25,7 +26,7 @@ struct DashboardView: View {
 
                         // SRS Heatmap (No Cognitive Chart!)
                         CyberCard {
-                            SRSHeatmap()
+                            SRSHeatmap(selectedOperation: $selectedOperation)
                         }
 
                         // Action Modes
@@ -38,6 +39,7 @@ struct DashboardView: View {
 
                             GameModeButton(
                                 mode: .sprint,
+                                trainingOperation: nil,
                                 title: "Sprint",
                                 subtitle: "60s Time Attack",
                                 stat: highScore(for: .sprint),
@@ -47,6 +49,7 @@ struct DashboardView: View {
 
                             GameModeButton(
                                 mode: .marathon,
+                                trainingOperation: nil,
                                 title: "Marathon",
                                 subtitle: "3 Lives • 10s Limit",
                                 stat: highScore(for: .marathon),
@@ -56,8 +59,9 @@ struct DashboardView: View {
 
                             GameModeButton(
                                 mode: .training,
+                                trainingOperation: selectedOperation,
                                 title: "Training",
-                                subtitle: "Adaptive Learning",
+                                subtitle: "\(selectedOperation.symbol) Adaptive Learning",
                                 stat: "SRS",
                                 icon: "brain.head.profile",
                                 color: .textPrimary
@@ -83,6 +87,7 @@ struct DashboardView: View {
 
 struct GameModeButton: View {
     let mode: GameMode
+    let trainingOperation: OperationType?
     let title: String
     let subtitle: String
     let stat: String
@@ -90,7 +95,9 @@ struct GameModeButton: View {
     let color: Color
 
     var body: some View {
-        NavigationLink(destination: ActiveGameView(mode: mode)) {
+        NavigationLink(
+            destination: ActiveGameView(mode: mode, trainingOperation: trainingOperation)
+        ) {
             HStack(spacing: 16) {
                 // Icon Container
                 ZStack {

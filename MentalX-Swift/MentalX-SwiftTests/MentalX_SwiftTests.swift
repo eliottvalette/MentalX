@@ -93,7 +93,11 @@ struct MentalX_SwiftTests {
         context.insert(dueItem)
         try context.save()
 
-        let viewModel = GameViewModel(mode: .training, modelContext: context)
+        let viewModel = GameViewModel(
+            mode: .training,
+            modelContext: context,
+            trainingOperation: .addition
+        )
         viewModel.nextQuestion()
         let answeredQuestionID = try #require(viewModel.currentQuestion?.id)
         #expect(viewModel.currentQuestion?.text == "10 + 3")
@@ -104,6 +108,55 @@ struct MentalX_SwiftTests {
         #expect(viewModel.currentQuestion?.id != answeredQuestionID)
         #expect(dueItem.repetition == 1)
         #expect(dueItem.dueDate > Date())
+    }
+
+    @Test("Training only loads the selected operation")
+    @MainActor
+    func trainingFiltersSelectedOperation() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: SRSItem.self, configurations: configuration)
+        let context = ModelContext(container)
+        context.insert(SRSItem(type: OperationType.addition.rawValue, op1: 10, op2: 3))
+        context.insert(SRSItem(type: OperationType.multiplication.rawValue, op1: 3, op2: 4))
+        try context.save()
+
+        let viewModel = GameViewModel(
+            mode: .training,
+            modelContext: context,
+            trainingOperation: .multiplication
+        )
+
+        for _ in 0..<25 {
+            viewModel.nextQuestion()
+            #expect(viewModel.currentQuestion?.type == .multiplication)
+        }
+    }
+
+    @Test("Commutative operations share SRS identity")
+    func commutativeSRSIdentity() {
+        let multiplicationForward = SRSItem.identifier(
+            type: OperationType.multiplication.rawValue,
+            op1: 3,
+            op2: 12
+        )
+        let multiplicationReverse = SRSItem.identifier(
+            type: OperationType.multiplication.rawValue,
+            op1: 12,
+            op2: 3
+        )
+        let additionForward = SRSItem.identifier(
+            type: OperationType.addition.rawValue,
+            op1: 4,
+            op2: 11
+        )
+        let additionReverse = SRSItem.identifier(
+            type: OperationType.addition.rawValue,
+            op1: 11,
+            op2: 4
+        )
+
+        #expect(multiplicationForward == multiplicationReverse)
+        #expect(additionForward == additionReverse)
     }
 
 }
