@@ -2,7 +2,6 @@ import SwiftData
 import SwiftUI
 
 struct DashboardView: View {
-    @Query private var srsItems: [SRSItem]
     @Query private var gameResults: [GameResult]
     @State private var selectedOperation: OperationType = .multiplication
 

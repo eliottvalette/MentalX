@@ -2,8 +2,9 @@ import SwiftData
 import SwiftUI
 
 struct SRSHeatmap: View {
-    @Query private var srsItems: [SRSItem]
+    @Environment(\.modelContext) private var modelContext
     @Binding var selectedOperation: OperationType
+    @State private var colorsByID: [String: String] = [:]
 
     private let multiplicationNumbers = Array(QuestionGenerator.multiplicationOperands)
 
@@ -28,10 +29,34 @@ struct SRSHeatmap: View {
             // Heatmap Content
             switch selectedOperation {
             case .multiplication:
-                MultiplicationGrid(items: srsItems, numbers: multiplicationNumbers)
+                MultiplicationGrid(colorsByID: colorsByID, numbers: multiplicationNumbers)
             case .addition, .subtraction:
-                ArithmeticGrid(items: srsItems, operation: selectedOperation)
+                ArithmeticGrid(colorsByID: colorsByID, operation: selectedOperation)
             }
+        }
+        .onAppear(perform: loadSnapshot)
+        .onChange(of: selectedOperation) {
+            loadSnapshot()
+        }
+    }
+
+    private func loadSnapshot() {
+        let operation = selectedOperation.rawValue
+        let descriptor = FetchDescriptor<SRSItem>(
+            predicate: #Predicate { $0.type == operation }
+        )
+
+        do {
+            let items = try modelContext.fetch(descriptor)
+            colorsByID = Dictionary(
+                items.map { item in
+                    (item.id, SRSManager.shared.getColor(for: item))
+                },
+                uniquingKeysWith: { first, _ in first }
+            )
+        } catch {
+            print("SRS heatmap snapshot load failed for \(operation): \(error)")
+            colorsByID = [:]
         }
     }
 }
@@ -61,7 +86,7 @@ struct TabButton: View {
 }
 
 struct MultiplicationGrid: View {
-    let items: [SRSItem]
+    let colorsByID: [String: String]
     let numbers: [Int]
 
     // RN sizes: 18px cell + 1px margin/side -> 20px total width
@@ -95,8 +120,8 @@ struct MultiplicationGrid: View {
                             op1: row,
                             op2: col
                         )
-                        let item = items.first { $0.id == id }
-                        CellView(color: Color(hex: SRSManager.shared.getColor(for: item)))
+                        let color = colorsByID[id] ?? SRSManager.shared.getColor(for: nil)
+                        CellView(color: Color(hex: color))
                             .frame(width: cellSize, height: cellSize)
                     }
                 }
@@ -106,21 +131,12 @@ struct MultiplicationGrid: View {
 }
 
 struct ArithmeticGrid: View {
-    let items: [SRSItem]
+    let colorsByID: [String: String]
     let operation: OperationType
 
     private let cellWidth: CGFloat = 18
     private let cellHeight: CGFloat = 2.5
     private let cellSpacing: CGFloat = 1
-
-    private var itemMap: [String: SRSItem] {
-        Dictionary(
-            items.filter { $0.type == operation.rawValue }.map { item in
-                (item.id, item)
-            },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
 
     var body: some View {
         VStack(spacing: 4) {
@@ -137,9 +153,7 @@ struct ArithmeticGrid: View {
                             op1: left,
                             op2: right
                         )
-                        let color = Color(
-                            hex: SRSManager.shared.getColor(for: itemMap[id])
-                        )
+                        let color = Color(hex: colorsByID[id] ?? SRSManager.shared.getColor(for: nil))
                         let rect = CGRect(
                             x: CGFloat(right - 1) * (cellWidth + cellSpacing),
                             y: CGFloat(left - 1) * (cellHeight + cellSpacing),

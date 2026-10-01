@@ -66,21 +66,28 @@ struct MentalX_SwiftTests {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: SRSItem.self, configurations: configuration)
         let context = ModelContext(container)
-        let viewModel = GameViewModel(mode: .sprint, modelContext: context)
-        viewModel.currentQuestion = Question(
-            text: "3 × 4",
-            answer: 12,
-            operands: [3, 4],
-            type: .multiplication
+        var uptime: TimeInterval = 100
+        let viewModel = GameViewModel(
+            mode: .sprint,
+            modelContext: context,
+            uptimeProvider: { uptime }
         )
+        viewModel.nextQuestion()
+        let question = try #require(viewModel.currentQuestion)
 
-        viewModel.submitInput("1")
-        viewModel.submitInput("2")
+        uptime += 0.25
+        submit(answer: question.answer, to: viewModel)
 
         let items = try context.fetch(FetchDescriptor<SRSItem>())
         #expect(viewModel.score == 1)
         #expect(items.count == 1)
-        #expect(items.first?.id == "multiplication:3:4")
+        #expect(
+            items.first?.id == SRSItem.identifier(
+                type: question.type.rawValue,
+                op1: question.operands[0],
+                op2: question.operands[1]
+            )
+        )
     }
 
     @Test("Training does not immediately repeat a correctly answered due question")
@@ -159,4 +166,60 @@ struct MentalX_SwiftTests {
         #expect(additionForward == additionReverse)
     }
 
+    @Test("SRS quality follows response-time thresholds")
+    func responseTimeQualityThresholds() {
+        let manager = SRSManager.shared
+
+        #expect(manager.quality(forResponseTime: 0.499, hadIncorrectAttempt: false) == 5)
+        #expect(manager.quality(forResponseTime: 0.5, hadIncorrectAttempt: false) == 4)
+        #expect(manager.quality(forResponseTime: 0.999, hadIncorrectAttempt: false) == 4)
+        #expect(manager.quality(forResponseTime: 1, hadIncorrectAttempt: false) == 2)
+        #expect(manager.quality(forResponseTime: 2.999, hadIncorrectAttempt: false) == 2)
+        #expect(manager.quality(forResponseTime: 3, hadIncorrectAttempt: false) == 1)
+        #expect(manager.quality(forResponseTime: 0.1, hadIncorrectAttempt: true) == 0)
+    }
+
+    @Test("A wrong attempt records one zero even after a quick correction")
+    @MainActor
+    func wrongThenCorrectRemainsZero() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: SRSItem.self, configurations: configuration)
+        let context = ModelContext(container)
+        let dueItem = SRSItem(type: OperationType.multiplication.rawValue, op1: 3, op2: 4)
+        context.insert(dueItem)
+        try context.save()
+        var uptime: TimeInterval = 100
+        let viewModel = GameViewModel(
+            mode: .training,
+            modelContext: context,
+            trainingOperation: .multiplication,
+            uptimeProvider: { uptime }
+        )
+        viewModel.nextQuestion()
+
+        uptime += 0.2
+        viewModel.submitInput("0")
+        viewModel.submitInput("0")
+        let easeFactorAfterError = dueItem.easeFactor
+
+        uptime += 0.1
+        viewModel.submitInput("1")
+        viewModel.submitInput("2")
+
+        #expect(dueItem.repetition == 0)
+        #expect(dueItem.interval == 1)
+        #expect(dueItem.easeFactor == easeFactorAfterError)
+        #expect(dueItem.easeFactor < 2.5)
+    }
+
+    @MainActor
+    private func submit(answer: Int, to viewModel: GameViewModel) {
+        if answer < 0 {
+            viewModel.toggleInputSign()
+        }
+
+        for digit in String(abs(answer)) {
+            viewModel.submitInput(String(digit))
+        }
+    }
 }

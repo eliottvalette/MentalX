@@ -18,6 +18,10 @@ final class GameViewModel {
     var totalTime: Double = 0
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var trainingQueue: [Question] = []
+    @ObservationIgnored private let uptimeProvider: () -> TimeInterval
+    @ObservationIgnored private var questionStartedAt: TimeInterval?
+    @ObservationIgnored private var hadIncorrectAttempt = false
+    @ObservationIgnored private var srsOutcomeRecorded = false
 
     // Feedback Triggers
     var successTrigger: Int = 0
@@ -29,11 +33,15 @@ final class GameViewModel {
     init(
         mode: GameMode,
         modelContext: ModelContext?,
-        trainingOperation: OperationType? = nil
+        trainingOperation: OperationType? = nil,
+        uptimeProvider: @escaping () -> TimeInterval = {
+            ProcessInfo.processInfo.systemUptime
+        }
     ) {
         self.mode = mode
         self.modelContext = modelContext
         self.trainingOperation = trainingOperation
+        self.uptimeProvider = uptimeProvider
     }
 
     deinit {
@@ -83,14 +91,15 @@ final class GameViewModel {
                     currentQuestion = nil
                     return
                 }
-                currentQuestion = question
+                presentQuestion(question)
             } catch {
                 print("Training queue load failed: \(error)")
                 currentQuestion = nil
+                questionStartedAt = nil
             }
 
         } else {
-            currentQuestion = makeRandomQuestion()
+            presentQuestion(makeRandomQuestion())
         }
 
         if mode == .marathon {
@@ -199,18 +208,34 @@ final class GameViewModel {
         let answerStr = "\(question.answer)"
 
         if input == answerStr {
+            if !srsOutcomeRecorded {
+                guard let responseTime = currentResponseTime else {
+                    print("SRS update failed: question start time is unavailable.")
+                    return
+                }
+                let quality = SRSManager.shared.quality(
+                    forResponseTime: responseTime,
+                    hadIncorrectAttempt: hadIncorrectAttempt
+                )
+                updateSRS(quality: quality, responseTime: responseTime)
+                srsOutcomeRecorded = true
+            }
+
             // Correct
             score += 1
             successTrigger += 1
             input = ""
 
-            updateSRS(correct: true)
-
             nextQuestion()
         } else if input.count >= answerStr.count {
             // Wrong and full length
+            hadIncorrectAttempt = true
+            if !srsOutcomeRecorded {
+                updateSRS(quality: 0, responseTime: currentResponseTime)
+                srsOutcomeRecorded = true
+            }
+
             if mode == .marathon {
-                updateSRS(correct: false)
                 input = ""
                 if loseLife() {
                     nextQuestion()
@@ -218,12 +243,11 @@ final class GameViewModel {
             } else {
                 errorTrigger += 1
                 input = ""
-                updateSRS(correct: false)
             }
         }
     }
 
-    func updateSRS(correct: Bool) {
+    func updateSRS(quality: Int, responseTime: TimeInterval?) {
         guard let context = modelContext else {
             print("SRS update failed: model context is unavailable.")
             return
@@ -251,14 +275,13 @@ final class GameViewModel {
                 context.insert(item)
             }
 
-            // Update via Manager
-            // Quality mapping: Correct -> 4/5, Incorrect -> 0-2
-            // Simplification for MVP: Correct = 5, Incorrect = 1
-            let quality = correct ? 5 : 1
             SRSManager.shared.updateItem(item, quality: quality)
 
             try context.save()
-            print("SRS Updated: \(item.id) -> Interval: \(item.interval)")
+            let responseDescription = responseTime.map { String(format: "%.3fs", $0) } ?? "unavailable"
+            print(
+                "SRS Updated: \(item.id) -> Quality: \(quality), Response: \(responseDescription), Interval: \(item.interval)"
+            )
 
         } catch {
             print("SRS Update Failed: \(error)")
@@ -305,6 +328,19 @@ final class GameViewModel {
         let types = OperationType.allCases
         let type = types[Int.random(in: types.indices)]
         return QuestionGenerator.shared.generate(type: type)
+    }
+
+    private var currentResponseTime: TimeInterval? {
+        guard let questionStartedAt else { return nil }
+        return uptimeProvider() - questionStartedAt
+    }
+
+    private func presentQuestion(_ question: Question) {
+        currentQuestion = question
+        input = ""
+        hadIncorrectAttempt = false
+        srsOutcomeRecorded = false
+        questionStartedAt = uptimeProvider()
     }
 
     private func questionIdentifier(_ question: Question) -> String {

@@ -4,6 +4,16 @@ import SwiftData
 class SRSManager {
     static let shared = SRSManager()
 
+    func quality(forResponseTime responseTime: TimeInterval, hadIncorrectAttempt: Bool) -> Int {
+        precondition(responseTime >= 0, "Response time must be nonnegative.")
+
+        if hadIncorrectAttempt { return 0 }
+        if responseTime < 0.5 { return 5 }
+        if responseTime < 1 { return 4 }
+        if responseTime < 3 { return 2 }
+        return 1
+    }
+
     // Deduplication logic to clean corrupted DB
     func deduplicate(in context: SwiftData.ModelContext) {
         do {
@@ -44,12 +54,9 @@ class SRSManager {
         }
     }
 
-    // Quality: 0-5
-    // 5 = Perfect response (fast)
-    // 3-4 = Correct (slower)
-    // 0-2 = Incorrect
-
     func updateItem(_ item: SRSItem, quality: Int) {
+        precondition((0...5).contains(quality), "SRS quality must be between 0 and 5.")
+
         if quality >= 3 {
             // Correct response
             if item.repetition == 0 {
