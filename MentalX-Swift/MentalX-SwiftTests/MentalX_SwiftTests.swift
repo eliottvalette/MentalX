@@ -170,13 +170,51 @@ struct MentalX_SwiftTests {
     func responseTimeQualityThresholds() {
         let manager = SRSManager.shared
 
-        #expect(manager.quality(forResponseTime: 0.499, hadIncorrectAttempt: false) == 5)
-        #expect(manager.quality(forResponseTime: 0.5, hadIncorrectAttempt: false) == 4)
-        #expect(manager.quality(forResponseTime: 0.999, hadIncorrectAttempt: false) == 4)
-        #expect(manager.quality(forResponseTime: 1, hadIncorrectAttempt: false) == 2)
-        #expect(manager.quality(forResponseTime: 2.999, hadIncorrectAttempt: false) == 2)
-        #expect(manager.quality(forResponseTime: 3, hadIncorrectAttempt: false) == 1)
+        #expect(manager.quality(forResponseTime: 1.249, hadIncorrectAttempt: false) == 5)
+        #expect(manager.quality(forResponseTime: 1.25, hadIncorrectAttempt: false) == 4)
+        #expect(manager.quality(forResponseTime: 2.499, hadIncorrectAttempt: false) == 4)
+        #expect(manager.quality(forResponseTime: 2.5, hadIncorrectAttempt: false) == 3)
+        #expect(manager.quality(forResponseTime: 10, hadIncorrectAttempt: false) == 3)
         #expect(manager.quality(forResponseTime: 0.1, hadIncorrectAttempt: true) == 0)
+    }
+
+    @Test("The scoring migration purges SRS progress exactly once and preserves game results")
+    @MainActor
+    func scoringMigrationPurgesOnlyOnce() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: SRSItem.self,
+            GameResult.self,
+            configurations: configuration
+        )
+        let context = ModelContext(container)
+        context.insert(SRSItem(type: OperationType.multiplication.rawValue, op1: 3, op2: 4))
+        context.insert(GameResult(mode: GameMode.sprint.rawValue, score: 12))
+        try context.save()
+
+        let suiteName = "MentalX-SwiftTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let didReset = try SRSManager.shared.resetOutdatedProgressIfNeeded(
+            in: context,
+            defaults: defaults
+        )
+
+        #expect(didReset)
+        #expect(try context.fetchCount(FetchDescriptor<SRSItem>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<GameResult>()) == 1)
+
+        context.insert(SRSItem(type: OperationType.multiplication.rawValue, op1: 5, op2: 6))
+        try context.save()
+
+        let didResetAgain = try SRSManager.shared.resetOutdatedProgressIfNeeded(
+            in: context,
+            defaults: defaults
+        )
+
+        #expect(!didResetAgain)
+        #expect(try context.fetchCount(FetchDescriptor<SRSItem>()) == 1)
     }
 
     @Test("A wrong attempt records one zero even after a quick correction")

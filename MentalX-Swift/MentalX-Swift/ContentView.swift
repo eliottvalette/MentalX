@@ -14,7 +14,16 @@ struct ContentView: View {
     var body: some View {
         DashboardView()
             .onAppear {
-                SRSManager.shared.deduplicate(in: modelContext)
+                do {
+                    let didReset = try SRSManager.shared.resetOutdatedProgressIfNeeded(
+                        in: modelContext
+                    )
+                    if !didReset {
+                        SRSManager.shared.deduplicate(in: modelContext)
+                    }
+                } catch {
+                    print("SRS scoring migration failed: \(error)")
+                }
             }
     }
 }

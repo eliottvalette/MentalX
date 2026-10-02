@@ -3,15 +3,37 @@ import SwiftData
 
 class SRSManager {
     static let shared = SRSManager()
+    static let currentScoringVersion = 3
+
+    private static let scoringVersionKey = "srsScoringVersion"
 
     func quality(forResponseTime responseTime: TimeInterval, hadIncorrectAttempt: Bool) -> Int {
         precondition(responseTime >= 0, "Response time must be nonnegative.")
 
         if hadIncorrectAttempt { return 0 }
-        if responseTime < 0.5 { return 5 }
-        if responseTime < 1 { return 4 }
-        if responseTime < 3 { return 2 }
-        return 1
+        if responseTime < 1.25 { return 5 }
+        if responseTime < 2.5 { return 4 }
+        return 3
+    }
+
+    @discardableResult
+    func resetOutdatedProgressIfNeeded(
+        in context: SwiftData.ModelContext,
+        defaults: UserDefaults = .standard
+    ) throws -> Bool {
+        guard defaults.integer(forKey: Self.scoringVersionKey) < Self.currentScoringVersion else {
+            return false
+        }
+
+        let items = try context.fetch(FetchDescriptor<SRSItem>())
+        for item in items {
+            context.delete(item)
+        }
+        try context.save()
+
+        defaults.set(Self.currentScoringVersion, forKey: Self.scoringVersionKey)
+        print("SRS progress reset for scoring version \(Self.currentScoringVersion): deleted \(items.count) items.")
+        return true
     }
 
     // Deduplication logic to clean corrupted DB
